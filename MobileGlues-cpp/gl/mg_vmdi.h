@@ -8,7 +8,6 @@
 #pragma once
 
 #include <GLES3/gl32.h>
-#include <GLES2/gl2ext.h>
 #include <cstdint>
 #include <cstddef>
 #include "mg_vmdi_config.h"
