@@ -1,4 +1,4 @@
-name: Build MobileGlues Android ARM64
+name: Build MobileGlues for Android ARM64
 
 on:
   push:
@@ -17,18 +17,21 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install NDK
-        run: |
-          sdkmanager --install "ndk;28.0.13004108"
-          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/28.0.13004108" >> "$GITHUB_ENV"
-
       - name: Build MobileGlues
         working-directory: MobileGlues-cpp
         run: |
+          NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_ROOT}"
+
+          if [ -z "$NDK_HOME" ]; then
+            NDK_HOME="$(find "$ANDROID_SDK_ROOT/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          fi
+
+          echo "Using Android NDK: $NDK_HOME"
+
           cmake -S . -B build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26
 
@@ -50,3 +53,4 @@ jobs:
           name: MobileGlues-arm64-v8a
           path: MobileGlues-arm64-v8a.zip
           compression-level: 0
+
