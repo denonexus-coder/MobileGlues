@@ -215,6 +215,7 @@ struct global_settings_t {
     Version custom_gl_version;
     FSR1_Quality_Preset fsr1_setting;
     HideMGEnvLevel hide_mg_env_level;
+    bool enable_vmdi;
 };
 
 extern global_settings_t global_settings;

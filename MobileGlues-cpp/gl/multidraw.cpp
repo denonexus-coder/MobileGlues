@@ -6,6 +6,8 @@
 // End of Source File Header
 
 #include "multidraw.h"
+#include "mg_vmdi.h"
+#include "mg_vmdi_config.h"
 #include "../config/settings.h"
 #include "buffer.h"
 #include "enable.h"
@@ -1972,6 +1974,12 @@ void glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void* indirect,
                      "on an indirect draw; restarts will be ignored");
     }
 
+    if (__builtin_expect(mg_vmdi_get_mode() == MG_MultiDrawMode::MG_VMDI_OPTIMIZED, 1)) {
+        g_vmdiEngine.Dispatch(mode, type, indirect, static_cast<uint32_t>(drawcount), static_cast<uint32_t>(stride));
+        CHECK_GL_ERROR
+        return;
+    }
+
     const bool want_batch = multidraw_backend_of(md_entry_t::ElementsIndirect) == md_backend_t::MultiIndirect;
 
     if (want_batch && g_gles_caps.GL_EXT_multi_draw_indirect && GLES.glMultiDrawElementsIndirectEXT) {
@@ -2298,6 +2306,9 @@ extern "C"
     GLAPI GLAPIENTRY void glMultiDrawElementsIndirectCountARB(GLenum mode, GLenum type, const void* indirect,
                                                               GLintptr drawcount, GLsizei maxdrawcount, GLsizei stride)
         __attribute__((alias("glMultiDrawElementsIndirectCount")));
+    GLAPI GLAPIENTRY void glMultiDrawElementsIndirectEXT(GLenum mode, GLenum type, const void* indirect,
+                                                         GLsizei drawcount, GLsizei stride)
+        __attribute__((alias("glMultiDrawElementsIndirect")));
 }
 #else
 // Mach-O does not support alias attributes across translation units the way ELF
@@ -2331,6 +2342,10 @@ extern "C"
                                                               GLintptr drawcount, GLsizei maxdrawcount,
                                                               GLsizei stride) {
         glMultiDrawElementsIndirectCount(mode, type, indirect, drawcount, maxdrawcount, stride);
+    }
+    GLAPI GLAPIENTRY void glMultiDrawElementsIndirectEXT(GLenum mode, GLenum type, const void* indirect,
+                                                         GLsizei drawcount, GLsizei stride) {
+        glMultiDrawElementsIndirect(mode, type, indirect, drawcount, stride);
     }
 }
 #endif

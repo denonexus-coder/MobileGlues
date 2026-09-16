@@ -104,6 +104,8 @@ extern "C"
                                                     GLsizei stride);
     GLAPI GLAPIENTRY void glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void* indirect,
                                                       GLsizei drawcount, GLsizei stride);
+    GLAPI GLAPIENTRY void glMultiDrawElementsIndirectEXT(GLenum mode, GLenum type, const void* indirect,
+                                                         GLsizei drawcount, GLsizei stride);
     // The draw count is read on the GPU: a compute shader compacts the command
     // buffer so the commands past the count draw nothing. No CPU readback, so no
     // pipeline stall and no stale count.

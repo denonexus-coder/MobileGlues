@@ -11,6 +11,8 @@
 #include "../gl/envvars.h"
 #include "gpu_utils.h"
 #include "../gl/getter.h"
+#include "mg_vmdi_config.h"
+#include "../gl/mg_vmdi.h"
 
 #define DEBUG 0
 
@@ -32,6 +34,7 @@ void init_settings() {
     global_settings.custom_gl_version = {0, 0, 0}; // will go default
     global_settings.fsr1_setting = FSR1_Quality_Preset::Disabled;
     global_settings.hide_mg_env_level = HideMGEnvLevel::Disabled;
+    global_settings.enable_vmdi = false;
 
 #else
 
@@ -58,6 +61,19 @@ void init_settings() {
         success ? static_cast<FSR1_Quality_Preset>(config_get_int("fsr1Setting")) : FSR1_Quality_Preset::Disabled;
     HideMGEnvLevel hideMGEnvLevel =
         success ? static_cast<HideMGEnvLevel>(config_get_int("hideMGEnvLevel")) : HideMGEnvLevel::Disabled;
+
+    bool enableVMDI = true;
+    if (success) {
+        int vmdiCfg = config_get_int("enableVMDI");
+        if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdiEnable");
+        if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdi");
+        if (vmdiCfg != -1) enableVMDI = (vmdiCfg > 0);
+    }
+    const char* envVmdi = getenv("MG_VMDI_ENABLE");
+    if (envVmdi) {
+        enableVMDI = (strcmp(envVmdi, "1") == 0 || strcasecmp(envVmdi, "true") == 0);
+    }
+    mg_vmdi_set_mode(enableVMDI ? MG_MultiDrawMode::MG_VMDI_OPTIMIZED : MG_MultiDrawMode::LEGACY_MOBILEGLUES);
 
     if (customGLVersionInt < 0) {
         customGLVersionInt = 0;
@@ -217,6 +233,7 @@ void init_settings() {
     global_settings.custom_gl_version = customGLVersion;
     global_settings.fsr1_setting = fsr1Setting;
     global_settings.hide_mg_env_level = hideMGEnvLevel;
+    global_settings.enable_vmdi = enableVMDI;
 #endif
 
     LOG_V("[MobileGlues] Setting: enableAngle                 = %s",
@@ -242,6 +259,8 @@ void init_settings() {
     LOG_V("[MobileGlues] Setting: fsr1Setting                 = %i", static_cast<int>(global_settings.fsr1_setting))
     LOG_V("[MobileGlues] Setting: hideMGEnvLevel              = %i",
           static_cast<int>(global_settings.hide_mg_env_level))
+    LOG_V("[MobileGlues] Setting: enableVMDI                  = %s",
+          global_settings.enable_vmdi ? "true" : "false")
 
     GLVersion =
         global_settings.custom_gl_version.isEmpty() ? Version(DEFAULT_GL_VERSION) : global_settings.custom_gl_version;
@@ -584,6 +603,11 @@ void set_multidraw_setting() { // should be called after init_gles_target()
             break;
         }
     }
+
+    if (global_settings.enable_vmdi) {
+        const char* exts = reinterpret_cast<const char*>(GLES.glGetString ? GLES.glGetString(GL_EXTENSIONS) : nullptr);
+        g_vmdiEngine.Init(exts);
+    }
 }
 
 md_backend_t md_next_backend(md_entry_t e, md_backend_t cur) {
@@ -745,9 +769,10 @@ std::string dump_settings_string(std::string prefix) {
     ss << prefix << "HideMGEnvLevel: "
        << ((global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled)
                ? "Disabled"
-               : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)));
+               : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)))
+       << "\n";
 
-    ss << "\n";
+    ss << prefix << "EnableVMDI: " << (global_settings.enable_vmdi ? "True" : "False") << "\n";
 
     return ss.str();
 }
