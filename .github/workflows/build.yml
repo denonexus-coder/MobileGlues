@@ -1,29 +1,52 @@
-name: Build MobileGlues for iOS
-on: [push, workflow_dispatch]
+name: Build MobileGlues Android ARM64
+
+on:
+  push:
+  workflow_dispatch:
+
 jobs:
-  build-ios:
-    runs-on: macos-latest
+  build-arm64-v8a:
+    runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Build MobileGlues
-        run: |
-          cd MobileGlues-cpp
-          wget https://github.com/leetal/ios-cmake/raw/master/ios.toolchain.cmake
-          cmake -B build \
-            -DCMAKE_TOOLCHAIN_FILE=ios.toolchain.cmake \
-            -DSTATICLIB=OFF \
-            -DMACOS=ON \
-            -DPLATFORM=OS64 \
-            -DCMAKE_C_FLAGS=-Wno-error=implicit-function-declaration
-          cmake --build build --config RelWithDebInfo --target mobileglues
-          codesign -s - build/libmobileglues.dylib
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Upload lib
+      - name: Install NDK
+        run: |
+          sdkmanager --install "ndk;28.0.13004108"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/28.0.13004108" >> "$GITHUB_ENV"
+
+      - name: Build MobileGlues
+        working-directory: MobileGlues-cpp
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-26
+
+          cmake --build build \
+            --target mobileglues \
+            --parallel
+
+      - name: Create maximum-compression ZIP
+        run: |
+          mkdir -p package/arm64-v8a
+          cp MobileGlues-cpp/build/libmobileglues.so package/arm64-v8a/
+
+          cd package
+          zip -9 -X ../MobileGlues-arm64-v8a.zip arm64-v8a/libmobileglues.so
+
+      - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: MobileGlues-iOS-dylib
-          path: /Users/runner/work/MobileGlues/MobileGlues/MobileGlues-cpp/build
+          name: MobileGlues-arm64-v8a
+          path: MobileGlues-arm64-v8a.zip
+          compression-level: 0
