@@ -1,45 +1,39 @@
 name: Build MobileGlues for Android ARM64
 
-on:
-  push:
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
-  build-arm64-v8a:
+  build-arm64:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Build MobileGlues
-        working-directory: MobileGlues-cpp
         run: |
-          NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_ROOT}"
+          cd MobileGlues-cpp
 
-          if [ -z "$NDK_HOME" ]; then
-            NDK_HOME="$(find "$ANDROID_SDK_ROOT/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT}}"
+
+          if [ -z "$NDK" ]; then
+            NDK="$(find "$ANDROID_SDK_ROOT/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
           fi
 
-          echo "Using Android NDK: $NDK_HOME"
+          echo "Using NDK: $NDK"
 
-          cmake -S . -B build \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$NDK_HOME/build/cmake/android.toolchain.cmake" \
+          cmake -B build \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-26
+            -DANDROID_PLATFORM=android-26 \
+            -DSTATICLIB=OFF \
+            -DCMAKE_C_FLAGS=-Wno-error=implicit-function-declaration
 
-          cmake --build build \
-            --target mobileglues \
-            --parallel
+          cmake --build build --config Release --target mobileglues
 
-      - name: Create maximum-compression ZIP
+      - name: Compress lib
         run: |
           mkdir -p package/arm64-v8a
           cp MobileGlues-cpp/build/libmobileglues.so package/arm64-v8a/
@@ -47,10 +41,8 @@ jobs:
           cd package
           zip -9 -X ../MobileGlues-arm64-v8a.zip arm64-v8a/libmobileglues.so
 
-      - name: Upload ZIP
+      - name: Upload lib
         uses: actions/upload-artifact@v4
         with:
-          name: MobileGlues-arm64-v8a
+          name: MobileGlues-Android-arm64-v8a
           path: MobileGlues-arm64-v8a.zip
-          compression-level: 0
-
