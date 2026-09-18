@@ -35,6 +35,7 @@ void init_settings() {
     global_settings.fsr1_setting = FSR1_Quality_Preset::Disabled;
     global_settings.hide_mg_env_level = HideMGEnvLevel::Disabled;
     global_settings.enable_vmdi = false;
+    global_settings.enable_imdbi = false;
 
 #else
 
@@ -62,18 +63,61 @@ void init_settings() {
     HideMGEnvLevel hideMGEnvLevel =
         success ? static_cast<HideMGEnvLevel>(config_get_int("hideMGEnvLevel")) : HideMGEnvLevel::Disabled;
 
-    bool enableVMDI = true;
+    MG_MultiDrawMode targetMdMode = MG_MultiDrawMode::LEGACY_MOBILEGLUES;
     if (success) {
-        int vmdiCfg = config_get_int("enableVMDI");
-        if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdiEnable");
-        if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdi");
-        if (vmdiCfg != -1) enableVMDI = (vmdiCfg > 0);
+        char* mdEngineStr = config_get_string("multidrawEngine");
+        if (!mdEngineStr) mdEngineStr = config_get_string("multidrawMode");
+        
+        if (mdEngineStr) {
+            if (strcasecmp(mdEngineStr, "imdbi") == 0 || strcmp(mdEngineStr, "2") == 0) {
+                targetMdMode = MG_MultiDrawMode::MG_IMDBI_OPTIMIZED;
+            } else if (strcasecmp(mdEngineStr, "vmdi") == 0 || strcmp(mdEngineStr, "1") == 0) {
+                targetMdMode = MG_MultiDrawMode::MG_VMDI_OPTIMIZED;
+            } else if (strcasecmp(mdEngineStr, "legacy") == 0 || strcasecmp(mdEngineStr, "original") == 0 || strcmp(mdEngineStr, "0") == 0) {
+                targetMdMode = MG_MultiDrawMode::LEGACY_MOBILEGLUES;
+            }
+        } else {
+            int imdbiCfg = config_get_int("enableIMDBI");
+            if (imdbiCfg == -1) imdbiCfg = config_get_int("imdbiEnable");
+            if (imdbiCfg == -1) imdbiCfg = config_get_int("imdbi");
+            if (imdbiCfg > 0) {
+                targetMdMode = MG_MultiDrawMode::MG_IMDBI_OPTIMIZED;
+            } else {
+                int vmdiCfg = config_get_int("enableVMDI");
+                if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdiEnable");
+                if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdi");
+                if (vmdiCfg > 0) {
+                    targetMdMode = MG_MultiDrawMode::MG_VMDI_OPTIMIZED;
+                }
+            }
+        }
     }
-    const char* envVmdi = getenv("MG_VMDI_ENABLE");
-    if (envVmdi) {
-        enableVMDI = (strcmp(envVmdi, "1") == 0 || strcasecmp(envVmdi, "true") == 0);
+
+    const char* envEngine = getenv("MG_MULTIDRAW_ENGINE");
+    if (envEngine) {
+        if (strcasecmp(envEngine, "imdbi") == 0 || strcmp(envEngine, "2") == 0) {
+            targetMdMode = MG_MultiDrawMode::MG_IMDBI_OPTIMIZED;
+        } else if (strcasecmp(envEngine, "vmdi") == 0 || strcmp(envEngine, "1") == 0) {
+            targetMdMode = MG_MultiDrawMode::MG_VMDI_OPTIMIZED;
+        } else if (strcasecmp(envEngine, "legacy") == 0 || strcasecmp(envEngine, "original") == 0 || strcmp(envEngine, "0") == 0) {
+            targetMdMode = MG_MultiDrawMode::LEGACY_MOBILEGLUES;
+        }
+    } else {
+        const char* envImdbi = getenv("MG_IMDBI_ENABLE");
+        if (envImdbi && (strcmp(envImdbi, "1") == 0 || strcasecmp(envImdbi, "true") == 0)) {
+            targetMdMode = MG_MultiDrawMode::MG_IMDBI_OPTIMIZED;
+        } else {
+            const char* envVmdi = getenv("MG_VMDI_ENABLE");
+            if (envVmdi) {
+                if (strcmp(envVmdi, "1") == 0 || strcasecmp(envVmdi, "true") == 0) {
+                    targetMdMode = MG_MultiDrawMode::MG_VMDI_OPTIMIZED;
+                }
+            }
+        }
     }
-    mg_vmdi_set_mode(enableVMDI ? MG_MultiDrawMode::MG_VMDI_OPTIMIZED : MG_MultiDrawMode::LEGACY_MOBILEGLUES);
+    mg_vmdi_set_mode(targetMdMode);
+    global_settings.enable_vmdi  = (targetMdMode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED);
+    global_settings.enable_imdbi = (targetMdMode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED);
 
     if (customGLVersionInt < 0) {
         customGLVersionInt = 0;
@@ -773,6 +817,8 @@ std::string dump_settings_string(std::string prefix) {
        << "\n";
 
     ss << prefix << "EnableVMDI: " << (global_settings.enable_vmdi ? "True" : "False") << "\n";
+    ss << prefix << "EnableIMDBI: " << (global_settings.enable_imdbi ? "True" : "False") << "\n";
+    ss << prefix << "MultiDrawEngine: " << mg_get_multidraw_engine_name() << "\n";
 
     return ss.str();
 }

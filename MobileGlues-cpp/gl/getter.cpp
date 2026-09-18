@@ -20,6 +20,7 @@
 #include "pixel.h"
 #include "random_string_gen.h"
 #include "../config/settings.h"
+#include "mg_vmdi_config.h"
 
 #define DEBUG 0
 
@@ -419,12 +420,14 @@ const GLubyte* glGetString(GLenum name) {
         return (const GLubyte*)versionString.c_str();
     }
     case GL_RENDERER: {
-        if (rendererString == std::string("")) {
-            if (global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled) {
-                std::string gpuName = getGpuName();
-                std::string glesName = getGLESName();
-                rendererString = std::string(gpuName) + " | " + std::string(glesName);
-            } else {
+        if (global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled) {
+            std::string gpuName = getGpuName();
+            std::string glesName = getGLESName();
+            std::string mdProfiler = mg_get_multidraw_profiler_string();
+            rendererString = gpuName + " | " + glesName + " | [" + mdProfiler + "]";
+            return (const GLubyte*)rendererString.c_str();
+        } else {
+            if (rendererString.empty()) {
                 const char choices[] = "AINM";
                 rendererString = choices[rand() % 4];
 

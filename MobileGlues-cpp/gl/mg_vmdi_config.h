@@ -8,20 +8,25 @@
 #pragma once
 #include <cstdint>
 
-// Modos de Operação do MultiDraw no MobileGlues
+// Modos de Operacao do MultiDraw no MobileGlues
 enum class MG_MultiDrawMode : int32_t {
-    LEGACY_MOBILEGLUES = 0, // Utiliza o fallback padrão (multidraw.cpp legado)
-    MG_VMDI_OPTIMIZED  = 1  // Utiliza nosso Virtual MDI com Ring-Buffer, Fusion e NEON
+    LEGACY_MOBILEGLUES = 0, // Utiliza o multidraw original (legacy)
+    MG_VMDI_OPTIMIZED  = 1, // Virtual MultiDraw Indirect (VMDI)
+    MG_IMDBI_OPTIMIZED = 2  // Infinity MultiDraw Bi-Indirect (IMDBI)
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Funções para controle via menu/config do MobileGlues
+// Funcoes para controle via menu/config do MobileGlues
 void mg_vmdi_set_mode(MG_MultiDrawMode mode);
 MG_MultiDrawMode mg_vmdi_get_mode();
 void mg_vmdi_toggle_mode();
+
+// Expor informacoes do backend ativo e profiler em tempo real para F3 / Debug
+const char* mg_get_multidraw_engine_name();
+const char* mg_get_multidraw_profiler_string();
 
 #ifdef __cplusplus
 }

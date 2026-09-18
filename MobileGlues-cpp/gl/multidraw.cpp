@@ -8,6 +8,7 @@
 #include "multidraw.h"
 #include "mg_vmdi.h"
 #include "mg_vmdi_config.h"
+#include "imdb_engine.h"
 #include "../config/settings.h"
 #include "buffer.h"
 #include "enable.h"
@@ -1931,6 +1932,16 @@ void glMultiDrawArraysIndirect(GLenum mode, const void* indirect, GLsizei drawco
 
     prepareForDraw();
 
+    const MG_MultiDrawMode md_mode = mg_vmdi_get_mode();
+
+    if (__builtin_expect(md_mode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED, 0)) {
+        g_imdbiDispatcher.dispatch_multi_draw(
+            IMDBI_DrawType::MULTI_DRAW_ARRAYS_INDIRECT,
+            mode, GL_UNSIGNED_INT, indirect, drawcount, stride);
+        CHECK_GL_ERROR
+        return;
+    }
+
     // The application already supplies the commands, so the only choice is
     // whether to hand the whole batch to the driver or walk it one command at a
     // time. The runtime checks stay as a safety net: resolution only picks
@@ -1972,6 +1983,14 @@ void glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void* indirect,
     if (mg_restart_needs_rewrite(type)) {
         MD_WARN_ONCE("glMultiDrawElementsIndirect: GL_PRIMITIVE_RESTART with a custom index cannot be emulated "
                      "on an indirect draw; restarts will be ignored");
+    }
+
+    if (__builtin_expect(mg_vmdi_get_mode() == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED, 0)) {
+        g_imdbiDispatcher.dispatch_multi_draw(
+            IMDBI_DrawType::MULTI_DRAW_ELEMENTS_INDIRECT,
+            mode, type, indirect, drawcount, stride);
+        CHECK_GL_ERROR
+        return;
     }
 
     if (__builtin_expect(mg_vmdi_get_mode() == MG_MultiDrawMode::MG_VMDI_OPTIMIZED, 1)) {

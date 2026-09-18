@@ -6,6 +6,7 @@
 // End of Source File Header
 
 #include "mg_vmdi.h"
+#include "imdb_engine.h"
 #include "buffer.h"
 #include "../gles/loader.h"
 #include "log.h"
@@ -27,11 +28,59 @@
 #endif
 
 MG_VMDI_Engine g_vmdiEngine;
-static MG_MultiDrawMode g_CurrentMode = MG_MultiDrawMode::MG_VMDI_OPTIMIZED;
+static MG_MultiDrawMode g_CurrentMode = MG_MultiDrawMode::LEGACY_MOBILEGLUES;
 
 extern "C" {
     void mg_vmdi_set_mode(MG_MultiDrawMode mode) {
         g_CurrentMode = mode;
+        if (g_CurrentMode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED) {
+            g_imdbiDispatcher.initialize();
+        }
+    // =========================================================================
+    // LOG DETALHADO DE CAPACIDADES MULTIDRAW
+    // =========================================================================
+    LOG_I("");
+    LOG_I("=====================================================================");
+    LOG_I("MobileGlues MultiDraw Subsystem — Capability Report");
+    LOG_I("=====================================================================");
+
+    const char* md_mode_name = mg_get_multidraw_engine_name();
+    LOG_I("  Active Mode: %s", md_mode_name);
+
+    const bool has_mdi = g_gles_caps.GL_EXT_multi_draw_indirect &&
+                         GLES.glMultiDrawElementsIndirectEXT != nullptr;
+    const bool has_mda = mg_multi_draw_arrays_ext_available();
+    const bool has_bv  = mg_multi_draw_elements_basevertex_ext_available();
+    const bool has_ind = GLES.glDrawElementsIndirect != nullptr;
+    const bool has_bst = g_gles_caps.GL_EXT_buffer_storage;
+    const bool has_cmp = GLES.glDispatchCompute != nullptr;
+
+    LOG_I("  GL_EXT_multi_draw_indirect : %s", has_mdi ? "YES" : "NO ");
+    LOG_I("  GL_EXT_multi_draw_arrays   : %s", has_mda ? "YES" : "NO ");
+    LOG_I("  draw_elements_base_vertex  : %s", has_bv  ? "YES" : "NO ");
+    LOG_I("  glDrawElementsIndirect     : %s", has_ind ? "YES" : "NO ");
+    LOG_I("  GL_EXT_buffer_storage      : %s", has_bst ? "YES" : "NO ");
+    LOG_I("  glDispatchCompute          : %s", has_cmp ? "YES" : "NO ");
+
+    const char* backend_rank = "N/A";
+    if (has_mdi)      backend_rank = "MDI native > Indirect > Compute > Unroll";
+    else if (has_bv)  backend_rank = "MultiBaseVertex > Indirect > Compute > Unroll";
+    else if (has_ind) backend_rank = "Indirect > Compute > Unroll";
+    else              backend_rank = "Compute > Unroll (fallback chain)";
+
+    LOG_I("  Effective Backend Rank: %s", backend_rank);
+
+    const char* engine_status = "Legacy (no active engine)";
+    if (g_CurrentMode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED)
+        engine_status = "VMDI active (ring buffer + compact/fuse + autotuner)";
+    else if (g_CurrentMode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED)
+        engine_status = "IMDBI active (persistent ring + state cache + 4x/8x unroll)";
+
+    LOG_I("  Engine Status: %s", engine_status);
+    LOG_I("=====================================================================");
+    LOG_I("");
+    // =========================================================================
+
     }
 
     MG_MultiDrawMode mg_vmdi_get_mode() {
@@ -39,13 +88,61 @@ extern "C" {
     }
 
     void mg_vmdi_toggle_mode() {
-        g_CurrentMode = (g_CurrentMode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED) 
-                        ? MG_MultiDrawMode::LEGACY_MOBILEGLUES 
-                        : MG_MultiDrawMode::MG_VMDI_OPTIMIZED;
+        if (g_CurrentMode == MG_MultiDrawMode::LEGACY_MOBILEGLUES) {
+            mg_vmdi_set_mode(MG_MultiDrawMode::MG_VMDI_OPTIMIZED);
+        } else if (g_CurrentMode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED) {
+            mg_vmdi_set_mode(MG_MultiDrawMode::MG_IMDBI_OPTIMIZED);
+        } else {
+            mg_vmdi_set_mode(MG_MultiDrawMode::LEGACY_MOBILEGLUES);
+        }
+    }
+
+    const char* mg_get_multidraw_engine_name() {
+        switch (g_CurrentMode) {
+        case MG_MultiDrawMode::LEGACY_MOBILEGLUES:
+            return "Original (Legacy)";
+        case MG_MultiDrawMode::MG_VMDI_OPTIMIZED:
+            return "VMDI (Virtual MDI)";
+        case MG_MultiDrawMode::MG_IMDBI_OPTIMIZED:
+            return "IMDBI (Bi-Indirect)";
+        default:
+            return "Unknown";
+        }
+    }
+
+    static char s_profiler_str_buf[256];
+    const char* mg_get_multidraw_profiler_string() {
+        switch (g_CurrentMode) {
+        case MG_MultiDrawMode::MG_IMDBI_OPTIMIZED: {
+            double avg_us = 0.0;
+            uint64_t last_us = 0;
+            uint64_t dispatches = 0;
+            uint64_t commands = 0;
+            g_imdbiDispatcher.get_profiler_stats().get_metrics(avg_us, last_us, dispatches, commands);
+            snprintf(s_profiler_str_buf, sizeof(s_profiler_str_buf),
+                     "MultiDraw: IMDBI | Calls: %llu | Cmds: %llu | Avg: %.2fus",
+                     (unsigned long long)dispatches, (unsigned long long)commands, avg_us);
+            return s_profiler_str_buf;
+        }
+        case MG_MultiDrawMode::MG_VMDI_OPTIMIZED: {
+            snprintf(s_profiler_str_buf, sizeof(s_profiler_str_buf),
+                     "MultiDraw: VMDI (Virtual MDI) | Active");
+            return s_profiler_str_buf;
+        }
+        case MG_MultiDrawMode::LEGACY_MOBILEGLUES:
+        default: {
+            snprintf(s_profiler_str_buf, sizeof(s_profiler_str_buf),
+                     "MultiDraw: Original MobileGlues (Legacy) | Active");
+            return s_profiler_str_buf;
+        }
+        }
     }
 
     void mg_init_multidraw_subsystem(const char* glExtensions) {
         g_vmdiEngine.Init(glExtensions);
+        if (g_CurrentMode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED) {
+            g_imdbiDispatcher.initialize();
+        }
     }
 }
 
