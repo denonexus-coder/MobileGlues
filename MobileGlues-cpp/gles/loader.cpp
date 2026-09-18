@@ -7,6 +7,8 @@
 
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
+#include <stdlib.h>
 #include <limits.h>
 #include <string>
 #include "loader.h"
@@ -103,6 +105,7 @@ void* open_lib(const char** names, const char* override, bool* used_override) {
     char path_name[PATH_MAX + 1];
     int flags = RTLD_LOCAL | RTLD_NOW;
     if (override) {
+        setenv("ANGLE_FEATURE_OVERRIDES_ENABLED", "exposeES32ForTesting", 1);
         if ((lib = dlopen(override, flags))) {
             strncpy(path_name, override, PATH_MAX);
             LOG_D("LIBGL:loaded: %s\n", path_name)
@@ -128,6 +131,9 @@ void* open_lib(const char** names, const char* override, bool* used_override) {
 void load_libs() {
 #ifndef __APPLE__
     const bool want_angle = global_settings.angle == AngleMode::Enabled;
+    if (want_angle) {
+        setenv("ANGLE_FEATURE_OVERRIDES_ENABLED", "exposeES32ForTesting", 1);
+    }
     std::string gles_angle, egl_angle;
     const char* gles_override = want_angle ? angle_override(GLES_ANGLE, gles_angle) : nullptr;
     const char* egl_override = want_angle ? angle_override(EGL_ANGLE, egl_angle) : nullptr;
