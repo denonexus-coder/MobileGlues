@@ -33,11 +33,11 @@ void init_settings() {
     global_settings.ext_direct_state_access = true;
     global_settings.custom_gl_version = {0, 0, 0}; // will go default
     global_settings.fsr1_setting = FSR1_Quality_Preset::Disabled;
-    global_settings.hide_mg_env_level = HideMGEnvLevel::Disabled;
-    global_settings.enable_vmdi = false;
-    global_settings.enable_imdbi = false;
-
-#else
+    ss << prefix << "HideMGEnvLevel: "
+       << ((global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled)
+               ? "Disabled"
+               : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)));
+    ss << "\n";
 
     int success = initialized;
     if (!success) {
@@ -306,7 +306,6 @@ void init_settings() {
     LOG_V("[MobileGlues] Setting: hideMGEnvLevel              = %i",
           static_cast<int>(global_settings.hide_mg_env_level));
     // [REMOVED] orphan ref: LOG_V("[MobileGlues] Setting: enableVMDI                  = %s",
-          global_settings.enable_vmdi ? "true" : "false");
 
     GLVersion =
         global_settings.custom_gl_version.isEmpty() ? Version(DEFAULT_GL_VERSION) : global_settings.custom_gl_version;
@@ -781,7 +780,7 @@ std::string dump_settings_string(std::string prefix) {
 
     ss << prefix << "AngleDepthClearFixMode: "
        << (global_settings.angle_depth_clear_fix_mode == AngleDepthClearFixMode::Disabled ? "Disabled" : "Enabled");
-       << "\n";
+    ss << "\n";
 
     ss << prefix << "BufferCoherentAsFlush: " << (global_settings.buffer_coherent_as_flush ? "True" : "False") << "\n";
 
@@ -813,7 +812,7 @@ std::string dump_settings_string(std::string prefix) {
     ss << "\n";
 
     ss << prefix << "HideMGEnvLevel: "
-       << ((global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled);
+       << (global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled)
                ? "Disabled"
                : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)));
        << "\n";
