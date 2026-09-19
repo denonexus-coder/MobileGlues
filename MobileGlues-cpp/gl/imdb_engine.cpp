@@ -275,6 +275,7 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
 bool IMDBI_Dispatcher::dispatch_fast_indirect_ring(
     IMDBI_DrawType draw_type,
     GLenum mode,
+    GLenum type,
     const void* indirect_commands,
     GLsizei draw_count,
     GLsizei stride
@@ -339,6 +340,7 @@ bool IMDBI_Dispatcher::dispatch_fast_indirect_ring(
 bool IMDBI_Dispatcher::dispatch_stitching(
     IMDBI_DrawType draw_type,
     GLenum mode,
+    GLenum type,
     const void* indirect_commands,
     GLsizei draw_count,
     GLsizei stride

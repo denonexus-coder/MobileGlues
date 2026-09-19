@@ -334,6 +334,7 @@ private:
     bool dispatch_fast_indirect_ring(
         IMDBI_DrawType draw_type,
         GLenum mode,
+        GLenum type,
         const void* indirect_commands,
         GLsizei draw_count,
         GLsizei stride
@@ -342,6 +343,7 @@ private:
     bool dispatch_stitching(
         IMDBI_DrawType draw_type,
         GLenum mode,
+        GLenum type,
         const void* indirect_commands,
         GLsizei draw_count,
         GLsizei stride
