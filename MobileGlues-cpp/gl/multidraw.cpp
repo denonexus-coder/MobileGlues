@@ -2368,20 +2368,3 @@ extern "C"
     }
 }
 #endif
-
-
-// ─────────────────────────────────────────────────────────────────────────
-//  set_multidraw_setting — aplica a engine de MultiDraw escolhida no plugin.
-//
-//  Chamada por main.cpp::proc_init() depois de init_target_gles() e antes de
-//  init_settings_post(). Nesse ponto os recursos GL já existem e global_settings
-//  já foi preenchido por init_settings() a partir de config.json.
-//
-//  Sem isso o dispatcher em multidraw.cpp fica preso em LEGACY_MOBILEGLUES
-//  (g_CurrentMode, definido em mg_vmdi.cpp) e o valor de multidrawEngine que o
-//  usuário escolhe no plugin nunca chega ao jogo.
-// ─────────────────────────────────────────────────────────────────────────
-void set_multidraw_setting() {
-    mg_vmdi_set_mode(global_settings.multidraw_mode);
-    LOG_I("[MobileGlues] MultiDraw engine: %s", mg_get_multidraw_engine_name());
-}
