@@ -79,7 +79,15 @@ void glGetIntegerv(GLenum pname, GLint* params) {
         // off the driver, which describe the driver, not this context -- so it goes
         // to the driver, which knows the real answer.
         if (g_current_ctx && g_current_ctx->client_type == EGL_OPENGL_API) {
-            (*params) = g_current_ctx->granted_major;
+            if (global_settings.enable_ext_gl43) {
+                // enableExtGL43: report GL 4.3 so mods/games that gate on version
+                // number accept the context. The backend stays ES 3.1+; only the
+                // reported desktop version changes.
+                LOG_I("[MobileGlues] enableExtGL43 = true, reporting GL_MAJOR_VERSION = 4")
+                (*params) = 4;
+            } else {
+                (*params) = g_current_ctx->granted_major;
+            }
         } else if (g_current_ctx) {
             GLES.glGetIntegerv(GL_MAJOR_VERSION, params);
         } else {
@@ -88,7 +96,12 @@ void glGetIntegerv(GLenum pname, GLint* params) {
         break;
     case GL_MINOR_VERSION:
         if (g_current_ctx && g_current_ctx->client_type == EGL_OPENGL_API) {
-            (*params) = g_current_ctx->granted_minor;
+            if (global_settings.enable_ext_gl43) {
+                LOG_I("[MobileGlues] enableExtGL43 = true, reporting GL_MINOR_VERSION = 3")
+                (*params) = 3;
+            } else {
+                (*params) = g_current_ctx->granted_minor;
+            }
         } else if (g_current_ctx) {
             GLES.glGetIntegerv(GL_MINOR_VERSION, params);
         } else {
