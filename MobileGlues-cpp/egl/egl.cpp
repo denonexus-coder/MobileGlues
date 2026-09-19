@@ -373,15 +373,11 @@ namespace {
 
         rewritten.push_back(EGL_CONTEXT_CLIENT_VERSION);
         rewritten.push_back(kBackendDesktopGlClientVersion);
-        // enableExtGL43: request ES 3.1 from the backend so the driver allocates
-        // a context with the feature set needed to back GL 4.3 semantics.
-        // When the device cannot honour ES 3.1 the driver falls back to its best
-        // available minor version, which is safe -- we only ask, not mandate.
-        if (global_settings.enable_ext_gl43) {
-            LOG_I("[MobileGlues] enableExtGL43 = true, requesting ES 3.1 backend context")
-            rewritten.push_back(EGL_CONTEXT_MINOR_VERSION);
-            rewritten.push_back(1);
-        }
+        // Note: EGL_CONTEXT_MINOR_VERSION is intentionally NOT set here.
+        // Requesting ES 3.1 explicitly causes EGL_BAD_ATTRIBUTE on devices that
+        // only support ES 3.0 (the majority of Adreno 5xx). The driver is left
+        // to negotiate the best available minor version on its own.
+        // GL 4.3 is reported to the frontend via getter.cpp regardless.
         rewritten.push_back(EGL_NONE);
         *backend_attributes = std::move(rewritten);
         return true;
