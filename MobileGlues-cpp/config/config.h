@@ -28,6 +28,16 @@ extern "C"
     char* config_get_string(char* name);
     void config_cleanup();
 
+    // Path-navigating variants (Fase 2): split `path` on '.' and walk the
+    // cJSON tree — e.g. "diag.overlay.frameProfiler" resolves to
+    // config_json["diag"]["overlay"]["frameProfiler"].
+    // Fall back to the flat originals when there is no '.' in the path.
+    int   config_get_int_path(const char* path);
+    char* config_get_string_path(const char* path);
+    // config_get_bool_path: returns default_val when the path is absent or
+    // config_get_int_path returns < 0; otherwise 1 if value > 0, else 0.
+    int   config_get_bool_path(const char* path, int default_val);
+
 #ifdef __cplusplus
 }
 #endif

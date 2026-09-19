@@ -129,3 +129,83 @@ void config_cleanup() {
         config_json = NULL;
     }
 }
+
+// ---------------------------------------------------------------------------
+// Path-navigating helpers (Fase 2)
+//
+// Split `path` on '.' and walk the cJSON tree one segment at a time.
+// If any intermediate segment is missing or is not an object the function
+// returns the appropriate "absent" sentinel (-1 / nullptr / default_val).
+// When the path contains no '.', we delegate to the original flat functions
+// so that callers do not have to distinguish between the two cases.
+// ---------------------------------------------------------------------------
+
+// Walk config_json following `path` (dot-separated segments).
+// Returns the final cJSON node, or nullptr if any segment is missing.
+static cJSON* config_navigate(const char* path) {
+    if (config_json == NULL || path == NULL) return nullptr;
+
+    // Fast path: no dot → root lookup, same as config_get_int/string.
+    if (strchr(path, '.') == NULL) {
+        return cJSON_GetObjectItem(config_json, path);
+    }
+
+    // Copy the path so we can tokenise in place.
+    char buf[256];
+    strncpy(buf, path, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    cJSON* node = config_json;
+    char* token = strtok(buf, ".");
+    while (token != NULL) {
+        if (!cJSON_IsObject(node) && node != config_json) {
+            // Intermediate segment is not an object; path does not resolve.
+            return nullptr;
+        }
+        node = cJSON_GetObjectItem(node, token);
+        if (node == NULL) return nullptr;
+        token = strtok(NULL, ".");
+    }
+    return node;
+}
+
+int config_get_int_path(const char* path) {
+    if (path == NULL) return -1;
+
+    // No dot: delegate to the original function (keeps compat for callers that
+    // do not know whether the key is nested or not).
+    if (strchr(path, '.') == NULL) {
+        return config_get_int(const_cast<char*>(path));
+    }
+
+    cJSON* item = config_navigate(path);
+    if (item == NULL) {
+        LOG_D("Config path '%s' not found.\n", path);
+        return -1;
+    }
+    if (cJSON_IsNumber(item))  return item->valueint;
+    if (cJSON_IsBool(item))    return cJSON_IsTrue(item) ? 1 : 0;
+    if (cJSON_IsString(item))  return atoi(item->valuestring);
+    return -1;
+}
+
+char* config_get_string_path(const char* path) {
+    if (path == NULL) return nullptr;
+
+    if (strchr(path, '.') == NULL) {
+        return config_get_string(const_cast<char*>(path));
+    }
+
+    cJSON* item = config_navigate(path);
+    if (item == NULL || !cJSON_IsString(item)) {
+        LOG_D("Config path '%s' not found or not a string.\n", path);
+        return nullptr;
+    }
+    return item->valuestring;
+}
+
+int config_get_bool_path(const char* path, int default_val) {
+    int v = config_get_int_path(path);
+    if (v < 0) return default_val;
+    return v > 0 ? 1 : 0;
+}

@@ -858,17 +858,20 @@ void mg_v3_apply_settings() {
     global_settings.force_depth_precision_fix = mg_cfg_int("forceDepthPrecisionFix", 0) > 0;
 
     // Layer 3 — Debug
-    global_settings.diag_enabled               = mg_cfg_int("diag.enabled", 0) > 0;
-    global_settings.diag_frame_profiler        = mg_cfg_int("diag.overlay.frameProfiler", 0) > 0;
-    global_settings.diag_draw_call_count       = mg_cfg_int("diag.overlay.drawCallCount", 0) > 0;
-    global_settings.diag_shader_recompiles     = mg_cfg_int("diag.overlay.shaderRecompiles", 0) > 0;
-    global_settings.diag_backend_tier          = mg_cfg_int("diag.overlay.backendTier", 0) > 0;
-    global_settings.diag_cpu_gpu_load          = mg_cfg_int("diag.overlay.cpuGpuLoad", 0) > 0;
-    global_settings.diag_log_backend_selection = mg_cfg_int("diag.logging.backendSelection", 0) > 0;
-    global_settings.diag_log_shader_recompiles = mg_cfg_int("diag.logging.shaderRecompiles", 0) > 0;
-    global_settings.diag_log_draw_call_count   = mg_cfg_int("diag.logging.drawCallCount", 0) > 0;
-    global_settings.diag_log_gl_trace          = mg_cfg_int("diag.logging.glTrace", 0) > 0;
-    global_settings.diag_capability_report     = mg_cfg_int("diag.capabilityReport", 0) > 0;
-    global_settings.diag_perfetto_enabled      = mg_cfg_int("diag.perfetto.enabled", 0) > 0;
-    global_settings.diag_perfetto_max_duration = mg_cfg_int("diag.perfetto.maxDurationSec", 30);
+    global_settings.diag_enabled               = config_get_bool_path("diag.enabled", 0);
+    global_settings.diag_frame_profiler        = config_get_bool_path("diag.overlay.frameProfiler", 0);
+    global_settings.diag_draw_call_count       = config_get_bool_path("diag.overlay.drawCallCount", 0);
+    global_settings.diag_shader_recompiles     = config_get_bool_path("diag.overlay.shaderRecompiles", 0);
+    global_settings.diag_backend_tier          = config_get_bool_path("diag.overlay.backendTier", 0);
+    global_settings.diag_cpu_gpu_load          = config_get_bool_path("diag.overlay.cpuGpuLoad", 0);
+    global_settings.diag_log_backend_selection = config_get_bool_path("diag.logging.backendSelection", 0);
+    global_settings.diag_log_shader_recompiles = config_get_bool_path("diag.logging.shaderRecompiles", 0);
+    global_settings.diag_log_draw_call_count   = config_get_bool_path("diag.logging.drawCallCount", 0);
+    global_settings.diag_log_gl_trace          = config_get_bool_path("diag.logging.glTrace", 0);
+    const char* log_lvl = config_get_string_path("diag.logging.level");
+    global_settings.diag_log_level             = (log_lvl && log_lvl[0]) ? log_lvl : "info";
+    global_settings.diag_capability_report     = config_get_bool_path("diag.capabilityReport", 0);
+    global_settings.diag_perfetto_enabled      = config_get_bool_path("diag.perfetto.enabled", 0);
+    int p_dur = config_get_int_path("diag.perfetto.maxDurationSec");
+    global_settings.diag_perfetto_max_duration = p_dur > 0 ? p_dur : 30;
 }
