@@ -107,4 +107,7 @@ extern global_settings_t global_settings;
 
 void init_settings();
 
+// Retorna um dump legível dos global_settings (usado por GL_SETTINGS_MG).
+std::string dump_settings_string(std::string prefix);
+
 #endif

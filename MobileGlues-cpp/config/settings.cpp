@@ -4,6 +4,7 @@
 // End of Source File Header
 
 #include "settings.h"
+#include <iomanip>
 
 #include <cctype>
 #include <cstdio>
@@ -416,4 +417,83 @@ void init_settings() {
     LOG_V("[MobileGlues] enableANGLE=%d enableNoError=%d multidraw=%d fsr1=%d",
           (int)global_settings.angle, (int)global_settings.ignore_error,
           (int)global_settings.multidraw_mode, (int)global_settings.fsr1_setting);
+}
+
+// ── Restaurado do commit 91b19bc (assinatura exigida por gl/getter.cpp) ──
+std::string dump_settings_string(std::string prefix) {
+    std::stringstream ss;
+
+    ss << prefix << "Angle: " << (global_settings.angle == AngleMode::Enabled ? "Enabled" : "Disabled") << "\n";
+    ss << prefix << "IgnoreError: ";
+    switch (global_settings.ignore_error) {
+    case IgnoreErrorLevel::None:
+        ss << "None";
+        break;
+    case IgnoreErrorLevel::Partial:
+        ss << "Partial";
+        break;
+    case IgnoreErrorLevel::Full:
+        ss << "Full";
+        break;
+    }
+    ss << "\n";
+
+    ss << prefix << "ExtComputeShader: " << (global_settings.ext_compute_shader ? "True" : "False") << "\n";
+    ss << prefix << "ExtTimerQuery: " << (global_settings.ext_timer_query ? "True" : "False") << "\n";
+    ss << prefix << "ExtDirectStateAccess: " << (global_settings.ext_direct_state_access ? "True" : "False") << "\n";
+    ss << prefix << "MaxGlslCacheSize: " << (global_settings.max_glsl_cache_size / 1024 / 1024) << "MB\n";
+
+    for (int i = 0; i < MD_ENTRY_COUNT; ++i) {
+        ss << prefix << k_md_entries[i].order_key << ": ";
+        for (int k = 0; k < global_settings.multidraw_order_len[i]; ++k) {
+            if (k > 0) ss << " > ";
+            ss << md_backend_name(global_settings.multidraw_order[i][k]);
+        }
+        ss << "\n";
+    }
+
+    ss << prefix << "AngleDepthClearFixMode: "
+       << (global_settings.angle_depth_clear_fix_mode == AngleDepthClearFixMode::Disabled ? "Disabled" : "Enabled");
+    ss << "\n";
+
+    ss << prefix << "BufferCoherentAsFlush: " << (global_settings.buffer_coherent_as_flush ? "True" : "False") << "\n";
+
+    ss << prefix << "CustomGLVersion: "
+       << ((GLVersion.toInt(2) == DEFAULT_GL_VERSION) ? "(Default)" : std::to_string(GLVersion.toInt(2))) << "\n";
+
+    ss << prefix << "Fsr1Setting: ";
+
+    switch (global_settings.fsr1_setting) {
+    case FSR1_Quality_Preset::Disabled:
+        ss << "Disabled";
+        break;
+    case FSR1_Quality_Preset::UltraQuality:
+        ss << "UltraQuality";
+        break;
+    case FSR1_Quality_Preset::Quality:
+        ss << "Quality";
+        break;
+    case FSR1_Quality_Preset::Balanced:
+        ss << "Balanced";
+        break;
+    case FSR1_Quality_Preset::Performance:
+        ss << "Performance";
+        break;
+    default:
+        ss << "Unknown";
+        break;
+    }
+    ss << "\n";
+
+    ss << prefix << "HideMGEnvLevel: "
+       << ((global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled)
+               ? "Disabled"
+               : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)))
+       << "\n";
+
+    ss << prefix << "EnableVMDI: " << (global_settings.enable_vmdi ? "True" : "False") << "\n";
+    ss << prefix << "EnableIMDBI: " << (global_settings.enable_imdbi ? "True" : "False") << "\n";
+    ss << prefix << "MultiDrawEngine: " << mg_get_multidraw_engine_name() << "\n";
+
+    return ss.str();
 }
