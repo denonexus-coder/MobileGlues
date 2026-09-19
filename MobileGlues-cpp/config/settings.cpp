@@ -830,48 +830,45 @@ std::string dump_settings_string(std::string prefix) {
 //  Schema v3 — aplica campos adicionais lidos pelo plugin.
 //  Chamada por main.cpp depois de init_settings_post().
 //  Não substitui nada do init_settings original.
+//
+//  A API de config (config.h) é:
+//      int   config_get_int(char* name);    // -1 se ausente
+//      char* config_get_string(char* name); // nullptr se ausente
+//  Não há variante com default — o helper abaixo emula isso.
 // ═══════════════════════════════════════════════════════════════════════
+namespace {
+
+// config_get_int devolve -1 quando a chave não existe; aqui qualquer valor
+// negativo vira "ausente" e cai no default. Cobre também -2/-3 caso o parser
+// futuro mude a convenção.
+inline int mg_cfg_int(const char* key, int fallback) {
+    int v = config_get_int(const_cast<char*>(key));
+    return v < 0 ? fallback : v;
+}
+
+} // namespace
+
 void mg_v3_apply_settings() {
-    // multidrawEngine: qual motor de MultiDraw usar
-    {
-        const char* e = config_get_string("multidrawEngine");
-        if (e && *e) {
-            if (strcasecmp(e, "vmdi") == 0) {
-                global_settings.multidraw_mode = MG_MultiDrawMode::MG_VMDI_OPTIMIZED;
-            } else if (strcasecmp(e, "imdbi") == 0) {
-                global_settings.multidraw_mode = MG_MultiDrawMode::MG_IMDBI_OPTIMIZED;
-            } else {
-                global_settings.multidraw_mode = MG_MultiDrawMode::LEGACY_MOBILEGLUES;
-            }
-        }
-    }
-    global_settings.enable_vmdi  = (global_settings.multidraw_mode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED);
-    global_settings.enable_imdbi = (global_settings.multidraw_mode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED);
-
-    // Aplica o motor escolhido no subsistema mg_vmdi
-    mg_vmdi_set_mode(global_settings.multidraw_mode);
-    LOG_I("[MobileGlues] MultiDraw engine: %s", mg_get_multidraw_engine_name());
-
     // Extensões avançadas
-    global_settings.enable_ext_gl43           = config_get_int("enableExtGL43", 0) > 0;
-    global_settings.force_gl_get_error_skip   = config_get_int("forceGlGetErrorSkip", 1) > 0;
-    global_settings.buffer_upload_mode        = config_get_int("bufferUploadMode", 0);
-    global_settings.texture_swizzle_mode      = config_get_int("textureSwizzleMode", 0);
-    global_settings.max_anisotropy_override   = config_get_int("maxAnisotropyOverride", 0);
-    global_settings.force_depth_precision_fix = config_get_int("forceDepthPrecisionFix", 0) > 0;
+    global_settings.enable_ext_gl43           = mg_cfg_int("enableExtGL43", 0) > 0;
+    global_settings.force_gl_get_error_skip   = mg_cfg_int("forceGlGetErrorSkip", 1) > 0;
+    global_settings.buffer_upload_mode        = mg_cfg_int("bufferUploadMode", 0);
+    global_settings.texture_swizzle_mode      = mg_cfg_int("textureSwizzleMode", 0);
+    global_settings.max_anisotropy_override   = mg_cfg_int("maxAnisotropyOverride", 0);
+    global_settings.force_depth_precision_fix = mg_cfg_int("forceDepthPrecisionFix", 0) > 0;
 
     // Layer 3 — Debug
-    global_settings.diag_enabled               = config_get_int("diag.enabled", 0) > 0;
-    global_settings.diag_frame_profiler        = config_get_int("diag.overlay.frameProfiler", 0) > 0;
-    global_settings.diag_draw_call_count       = config_get_int("diag.overlay.drawCallCount", 0) > 0;
-    global_settings.diag_shader_recompiles     = config_get_int("diag.overlay.shaderRecompiles", 0) > 0;
-    global_settings.diag_backend_tier          = config_get_int("diag.overlay.backendTier", 0) > 0;
-    global_settings.diag_cpu_gpu_load          = config_get_int("diag.overlay.cpuGpuLoad", 0) > 0;
-    global_settings.diag_log_backend_selection = config_get_int("diag.logging.backendSelection", 0) > 0;
-    global_settings.diag_log_shader_recompiles = config_get_int("diag.logging.shaderRecompiles", 0) > 0;
-    global_settings.diag_log_draw_call_count   = config_get_int("diag.logging.drawCallCount", 0) > 0;
-    global_settings.diag_log_gl_trace          = config_get_int("diag.logging.glTrace", 0) > 0;
-    global_settings.diag_capability_report     = config_get_int("diag.capabilityReport", 0) > 0;
-    global_settings.diag_perfetto_enabled      = config_get_int("diag.perfetto.enabled", 0) > 0;
-    global_settings.diag_perfetto_max_duration = config_get_int("diag.perfetto.maxDurationSec", 30);
+    global_settings.diag_enabled               = mg_cfg_int("diag.enabled", 0) > 0;
+    global_settings.diag_frame_profiler        = mg_cfg_int("diag.overlay.frameProfiler", 0) > 0;
+    global_settings.diag_draw_call_count       = mg_cfg_int("diag.overlay.drawCallCount", 0) > 0;
+    global_settings.diag_shader_recompiles     = mg_cfg_int("diag.overlay.shaderRecompiles", 0) > 0;
+    global_settings.diag_backend_tier          = mg_cfg_int("diag.overlay.backendTier", 0) > 0;
+    global_settings.diag_cpu_gpu_load          = mg_cfg_int("diag.overlay.cpuGpuLoad", 0) > 0;
+    global_settings.diag_log_backend_selection = mg_cfg_int("diag.logging.backendSelection", 0) > 0;
+    global_settings.diag_log_shader_recompiles = mg_cfg_int("diag.logging.shaderRecompiles", 0) > 0;
+    global_settings.diag_log_draw_call_count   = mg_cfg_int("diag.logging.drawCallCount", 0) > 0;
+    global_settings.diag_log_gl_trace          = mg_cfg_int("diag.logging.glTrace", 0) > 0;
+    global_settings.diag_capability_report     = mg_cfg_int("diag.capabilityReport", 0) > 0;
+    global_settings.diag_perfetto_enabled      = mg_cfg_int("diag.perfetto.enabled", 0) > 0;
+    global_settings.diag_perfetto_max_duration = mg_cfg_int("diag.perfetto.maxDurationSec", 30);
 }
