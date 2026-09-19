@@ -75,6 +75,8 @@ public:
 
     void Dispatch(GLenum mode, GLenum type, const void* indirect, 
                   uint32_t drawCount, uint32_t stride);
+
+    void SetTierForced(BackendTier t);
 };
 
 // Singleton Engine
@@ -85,6 +87,11 @@ extern "C" {
 #endif
 
 void mg_init_multidraw_subsystem(const char* glExtensions);
+
+// Fase 3A: força um BackendTier específico e desliga o autotuner.
+// tier < 0 restaura autotuner (comportamento original).
+void mg_vmdi_set_tier(int tier);
+int  mg_vmdi_get_tier();
 
 #ifdef __cplusplus
 }

@@ -110,6 +110,23 @@ extern "C" {
         }
     }
 
+    static int g_ForcedTier = -1;  // -1 = auto
+
+    void mg_vmdi_set_tier(int tier) {
+        if (tier < -1 || tier > 3) tier = -1;
+        g_ForcedTier = tier;
+        if (tier >= 0) {
+            g_vmdiEngine.SetTierForced(static_cast<BackendTier>(tier));
+            LOG_I("[MobileGlues] VMDI tier forced to %d", tier);
+        } else {
+            LOG_I("[MobileGlues] VMDI tier = auto (autotuner active)");
+        }
+    }
+
+    int mg_vmdi_get_tier() {
+        return g_ForcedTier;
+    }
+
     static char s_profiler_str_buf[256];
     const char* mg_get_multidraw_profiler_string() {
         switch (g_CurrentMode) {
@@ -491,7 +508,13 @@ void MG_VMDI_Engine::ExecuteBackend(GLenum mode, GLenum type, size_t slotOffset,
     }
 }
 
+void MG_VMDI_Engine::SetTierForced(BackendTier t) {
+    currentTier = t;
+}
+
 void MG_VMDI_Engine::UpdateAutotuner(double frameTimeUs, uint32_t drawCount) {
+    if (g_ForcedTier >= 0) return;
+
     uint32_t tierIdx = static_cast<uint32_t>(currentTier);
     if (tierIdx < 4) {
         tuner.timePerBackend[tierIdx] += frameTimeUs;

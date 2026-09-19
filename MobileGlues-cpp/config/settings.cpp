@@ -14,6 +14,7 @@
 #include "../gl/getter.h"
 #include "mg_vmdi_config.h"
 #include "../gl/mg_vmdi.h"
+#include "../gl/imdb_engine.h"
 
 #define DEBUG 0
 
@@ -118,6 +119,7 @@ void init_settings() {
         }
     }
     mg_vmdi_set_mode(targetMdMode);
+    global_settings.multidraw_mode = targetMdMode;
     global_settings.enable_vmdi  = (targetMdMode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED);
     global_settings.enable_imdbi = (targetMdMode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED);
 
@@ -874,4 +876,57 @@ void mg_v3_apply_settings() {
     global_settings.diag_perfetto_enabled      = config_get_bool_path("diag.perfetto.enabled", 0);
     int p_dur = config_get_int_path("diag.perfetto.maxDurationSec");
     global_settings.diag_perfetto_max_duration = p_dur > 0 ? p_dur : 30;
+
+    // ── IMDBI submodes (só aplicam se engine == IMDBI) ──
+    if (global_settings.multidraw_mode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED || global_settings.enable_imdbi) {
+        const char* imdbi_mode_str = config_get_string_path("imdbiBackend");
+        int mode = 1;
+        if (imdbi_mode_str && *imdbi_mode_str) {
+            if (strcasecmp(imdbi_mode_str, "stitching") == 0) mode = 0;
+            else if (strcasecmp(imdbi_mode_str, "fast_indirect_ring") == 0) mode = 1;
+            else if (strcasecmp(imdbi_mode_str, "unrolled_loop") == 0) mode = 2;
+            else if (strcasecmp(imdbi_mode_str, "compute_dispatch") == 0) mode = 3;
+        }
+        global_settings.imdbi_backend_mode       = mode;
+        global_settings.imdbi_unroll_factor      = config_get_int_path("imdbiUnrollFactor") > 0
+                                                    ? config_get_int_path("imdbiUnrollFactor") : 4;
+        global_settings.imdbi_persistent_mapping = config_get_bool_path("imdbiPersistentMapping", 1);
+        global_settings.imdbi_register_pinning   = config_get_bool_path("imdbiRegisterPinning", 1);
+        global_settings.imdbi_primitive_restart  = config_get_bool_path("imdbiPrimitiveRestart", 1);
+        int ring = config_get_int_path("imdbiRingSize");
+        global_settings.imdbi_ring_size          = ring > 0 ? ring : (4 * 1024 * 1024);
+
+        // aplica na dispatcher
+        IMDBI_Config cfg = g_imdbiDispatcher.get_config();
+        cfg.primary_mode = static_cast<IMDBI_BackendMode>(mode);
+        cfg.unroll_factor = static_cast<uint32_t>(global_settings.imdbi_unroll_factor);
+        cfg.use_persistent_mapping = global_settings.imdbi_persistent_mapping;
+        cfg.enable_register_pinning = global_settings.imdbi_register_pinning;
+        cfg.enable_primitive_restart = global_settings.imdbi_primitive_restart;
+        cfg.ring_buffer_size = static_cast<size_t>(global_settings.imdbi_ring_size);
+        g_imdbiDispatcher.set_config(cfg);
+
+        LOG_I("[MobileGlues] IMDBI submode: backend=%d unroll=%d persistent=%d",
+              mode, global_settings.imdbi_unroll_factor,
+              (int)global_settings.imdbi_persistent_mapping);
+    }
+
+    // ── VMDI submode tier (só se engine == VMDI) ──
+    if (global_settings.multidraw_mode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED || global_settings.enable_vmdi) {
+        const char* tier_str = config_get_string_path("vmdiBackendTier");
+        int tier = -1;
+        if (tier_str && *tier_str) {
+            if (strcasecmp(tier_str, "native_mdi") == 0) tier = 0;
+            else if (strcasecmp(tier_str, "multi_base_vertex") == 0) tier = 1;
+            else if (strcasecmp(tier_str, "indirect_unrolled") == 0) tier = 2;
+            else if (strcasecmp(tier_str, "direct_fallback") == 0) tier = 3;
+            // "auto" ou vazio → -1
+        }
+        global_settings.vmdi_backend_tier    = tier;
+        global_settings.vmdi_enable_autotune = config_get_bool_path("vmdiEnableAutotune", 1);
+
+        mg_vmdi_set_tier(global_settings.vmdi_enable_autotune ? -1 : tier);
+        LOG_I("[MobileGlues] VMDI submode: tier=%d autotune=%d",
+              tier, (int)global_settings.vmdi_enable_autotune);
+    }
 }

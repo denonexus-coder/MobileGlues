@@ -230,6 +230,18 @@ struct global_settings_t {
     bool force_depth_precision_fix = false;
     float fsr1_sharpness = 0.75f;
 
+    // IMDBI submodes
+    int  imdbi_backend_mode        = 1;   // 0=STITCHING 1=RING 2=UNROLL 3=COMPUTE
+    int  imdbi_unroll_factor       = 4;   // 4 ou 8
+    bool imdbi_persistent_mapping  = true;
+    bool imdbi_register_pinning    = true;
+    bool imdbi_primitive_restart   = true;
+    int  imdbi_ring_size           = 4 * 1024 * 1024;
+
+    // VMDI submodes
+    int  vmdi_backend_tier         = -1;  // -1=Auto (autotuner decide); 0..3 = forçar
+    bool vmdi_enable_autotune      = true;
+
     // Layer 3 — Debug
     bool        diag_enabled = false;
     bool        diag_frame_profiler = false;
