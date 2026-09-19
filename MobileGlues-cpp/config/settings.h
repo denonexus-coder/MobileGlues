@@ -6,6 +6,7 @@
 #define MOBILEGLUES_PLUGIN_SETTINGS_H
 
 #include <cstddef>
+#include "../gl/mg_vmdi_config.h"
 #include <string>
 
 #define DEFAULT_GL_VERSION 40
@@ -38,12 +39,6 @@ enum class FSR1_Quality_Preset : int {
     Quality = 2,
     Balanced = 3,
     Performance = 4
-};
-
-enum class MG_MultiDrawMode : int {
-    LEGACY_MOBILEGLUES = 0,
-    MG_VMDI_OPTIMIZED  = 1,
-    MG_IMDBI_OPTIMIZED = 2
 };
 
 struct Version {

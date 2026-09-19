@@ -22,6 +22,10 @@
 #ifdef __cplusplus
 extern "C"
 {
+
+    // Aplica a engine de MultiDraw escolhida em config.json.
+    // Chamada por main.cpp::proc_init() depois de init_target_gles().
+    void set_multidraw_setting();
 #endif
 
     struct draw_elements_indirect_command_t {
