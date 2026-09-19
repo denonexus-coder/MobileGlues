@@ -126,10 +126,10 @@ bool IMDBI_Dispatcher::dispatch_multi_draw(
 
     switch (m_config.primary_mode) {
         case IMDBI_BackendMode::STITCHING:
-            status = dispatch_stitching(draw_type, mode, indirect_commands, draw_count, stride);
+            status = dispatch_stitching(draw_type, mode, type, indirect_commands, draw_count, stride);
             break;
         case IMDBI_BackendMode::FAST_INDIRECT_RING:
-            status = dispatch_fast_indirect_ring(draw_type, mode, indirect_commands, draw_count, stride);
+            status = dispatch_fast_indirect_ring(draw_type, mode, type, indirect_commands, draw_count, stride);
             break;
         case IMDBI_BackendMode::UNROLLED_LOOP:
             status = dispatch_unrolled_loop(draw_type, mode, type, indirect_commands, draw_count, stride);
@@ -210,7 +210,7 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
             if (m_glMultiDrawElementsIndirect != nullptr && draw_type == IMDBI_DrawType::MULTI_DRAW_ELEMENTS_INDIRECT) {
                 m_glMultiDrawElementsIndirect(
                     mode,
-                    GL_UNSIGNED_INT,
+                    type,
                     indirect_commands,
                     draw_count,
                     stride > 0 ? stride : sizeof(IMDBI_DrawElementsIndirectCommand)
@@ -313,7 +313,7 @@ bool IMDBI_Dispatcher::dispatch_fast_indirect_ring(
                 
                 m_glMultiDrawElementsIndirect(
                     mode,
-                    GL_UNSIGNED_INT,
+                    type,
                     offset_ptr,
                     draw_count,
                     static_cast<GLsizei>(actual_stride)

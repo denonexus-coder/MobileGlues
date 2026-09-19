@@ -282,6 +282,7 @@ public:
     bool dispatch_multi_draw(
         IMDBI_DrawType draw_type,
         GLenum mode,
+        GLenum type,
         const void* indirect_commands,
         GLsizei draw_count,
         GLsizei stride = 0
@@ -324,6 +325,7 @@ private:
     bool dispatch_unrolled_loop(
         IMDBI_DrawType draw_type,
         GLenum mode,
+        GLenum type,
         const void* indirect_commands,
         GLsizei draw_count,
         GLsizei stride
@@ -348,6 +350,7 @@ private:
     bool dispatch_compute(
         IMDBI_DrawType draw_type,
         GLenum mode,
+        GLenum type,
         const void* indirect_commands,
         GLsizei draw_count,
         GLsizei stride
