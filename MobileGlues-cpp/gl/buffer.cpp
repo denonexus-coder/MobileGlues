@@ -1016,6 +1016,57 @@ void glBufferData(GLenum target, GLsizeiptr size, const void* data, GLenum usage
     LOG_D("glBufferData, target = %s, size = %d, data = 0x%x, usage = %s", glEnumToString(target), size, data,
           glEnumToString(usage))
     borrowed_target_t t(target);
+
+    // bufferUploadMode: selects the VBO/IBO upload strategy.
+    // 0 = Auto (default, existing path — forward directly to the driver)
+    // 1 = MapPersistent: allocate persistent storage then memcpy via mapping
+    // 2 = SubData: allocate with null data, then upload with glBufferSubData
+    // 3 = CopyBuffer: allocate staging buffer, upload there, copy to target
+    const int upload_mode = global_settings.buffer_upload_mode;
+    if (upload_mode == 1 && data != nullptr && GLES.glBufferStorageEXT != nullptr) {
+        // Mode 1 — MapPersistent
+        LOG_I("[MobileGlues] bufferUploadMode = 1 (MapPersistent), size = %d", (int)size)
+        const GLbitfield storage_flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+        GLES.glBufferStorageEXT(t.target, size, nullptr, storage_flags);
+        void* ptr = GLES.glMapBufferRange(t.target, 0, size, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+        if (ptr != nullptr) {
+            __builtin_memcpy(ptr, data, size);
+            GLES.glUnmapBuffer(t.target);
+        } else {
+            // Fallback: storage was allocated but mapping failed — try SubData
+            GLES.glBufferSubData(t.target, 0, size, data);
+        }
+        set_buffer_data_size(find_bound_buffer_by_target(target), size);
+        CHECK_GL_ERROR
+        return;
+    } else if (upload_mode == 2 && data != nullptr) {
+        // Mode 2 — SubData
+        LOG_I("[MobileGlues] bufferUploadMode = 2 (SubData), size = %d", (int)size)
+        GLES.glBufferData(t.target, size, nullptr, usage);
+        GLES.glBufferSubData(t.target, 0, size, data);
+        set_buffer_data_size(find_bound_buffer_by_target(target), size);
+        CHECK_GL_ERROR
+        return;
+    } else if (upload_mode == 3 && data != nullptr) {
+        // Mode 3 — CopyBuffer (staging)
+        LOG_I("[MobileGlues] bufferUploadMode = 3 (CopyBuffer), size = %d", (int)size)
+        GLuint staging = 0;
+        GLES.glGenBuffers(1, &staging);
+        if (staging != 0) {
+            GLES.glBindBuffer(GL_COPY_READ_BUFFER, staging);
+            GLES.glBufferData(GL_COPY_READ_BUFFER, size, data, GL_STREAM_DRAW);
+            GLES.glBufferData(t.target, size, nullptr, usage);
+            GLES.glCopyBufferSubData(GL_COPY_READ_BUFFER, t.target, 0, 0, size);
+            GLES.glBindBuffer(GL_COPY_READ_BUFFER, 0);
+            GLES.glDeleteBuffers(1, &staging);
+            set_buffer_data_size(find_bound_buffer_by_target(target), size);
+            CHECK_GL_ERROR
+            return;
+        }
+        // staging alloc failed — fall through to default
+    }
+
+    // Mode 0 (Auto) or any unrecognised value: existing behaviour unchanged.
     GLES.glBufferData(t.target, size, data, usage);
     set_buffer_data_size(find_bound_buffer_by_target(target), size);
     CHECK_GL_ERROR
