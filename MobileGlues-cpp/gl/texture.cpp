@@ -1350,6 +1350,14 @@ void glRenderbufferStorage(GLenum target, GLenum internalFormat, GLsizei width, 
 
     INIT_CHECK_GL_ERROR_FORCE
 
+    // forceDepthPrecisionFix: promote 16-bit depth renderbuffers to 24-bit so that
+    // drivers with GL_OES_depth24 (GE8320, Adreno 5xx) deliver proper precision and
+    // avoid z-fighting. Harmless on devices that already request DEPTH24.
+    if (global_settings.force_depth_precision_fix && internalFormat == GL_DEPTH_COMPONENT16) {
+        LOG_I("[MobileGlues] forceDepthPrecisionFix: DEPTH16 → DEPTH24 (original=0x%x)", internalFormat)
+        internalFormat = GL_DEPTH_COMPONENT24;
+    }
+
     LOG_D("glRenderbufferStorage, target: %s, internalFormat: %s, width: %d, "
           "height: %d",
           glEnumToString(target), glEnumToString(internalFormat), width, height)
@@ -1359,11 +1367,19 @@ void glRenderbufferStorage(GLenum target, GLenum internalFormat, GLsizei width, 
     CHECK_GL_ERROR_NO_INIT
 }
 
+
 void glRenderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum internalFormat, GLsizei width,
                                       GLsizei height) {
     LOG()
 
     INIT_CHECK_GL_ERROR_FORCE
+
+    // forceDepthPrecisionFix: same promotion as glRenderbufferStorage — covers MSAA
+    // depth renderbuffers too.
+    if (global_settings.force_depth_precision_fix && internalFormat == GL_DEPTH_COMPONENT16) {
+        LOG_I("[MobileGlues] forceDepthPrecisionFix: DEPTH16 → DEPTH24 (MSAA, original=0x%x)", internalFormat)
+        internalFormat = GL_DEPTH_COMPONENT24;
+    }
 
     LOG_D("glRenderbufferStorageMultisample, target: %d, samples: %d, "
           "internalFormat: %d, width: %d, height: %d",
@@ -1373,6 +1389,7 @@ void glRenderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum int
 
     CHECK_GL_ERROR_NO_INIT
 }
+
 
 void glGetTexLevelParameterfv(GLenum target, GLint level, GLenum pname, GLfloat* params) {
     LOG()
