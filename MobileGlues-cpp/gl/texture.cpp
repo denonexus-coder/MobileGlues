@@ -1768,6 +1768,16 @@ void glTexParameteri(GLenum target, GLenum pname, GLint param) {
         return;
     }
 
+    // textureSwizzleMode: when 1 (Force), log and explicitly forward every
+    // individual swizzle channel set so drivers that lie about native swizzle
+    // support still receive the correct value.
+    // Mode 0 (Auto/default) falls through to the same GLES call unchanged.
+    if (global_settings.texture_swizzle_mode == 1 &&
+        (pname == GL_TEXTURE_SWIZZLE_R || pname == GL_TEXTURE_SWIZZLE_G ||
+         pname == GL_TEXTURE_SWIZZLE_B || pname == GL_TEXTURE_SWIZZLE_A)) {
+        LOG_I("[MobileGlues] textureSwizzleMode = 1, forcing swizzle pname=0x%x param=%d", pname, param)
+    }
+
     GLES.glTexParameteri(target, pname, param);
     CHECK_GL_ERROR
 }
