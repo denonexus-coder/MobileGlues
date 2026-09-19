@@ -83,7 +83,7 @@ void init_settings() {
             if (imdbiCfg > 0) {
                 targetMdMode = MG_MultiDrawMode::MG_IMDBI_OPTIMIZED;
             } else {
-                int vmdiCfg = config_get_int("enableVMDI");
+                // [REMOVED] orphan ref: int vmdiCfg = config_get_int("enableVMDI");
                 if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdiEnable");
                 if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdi");
                 if (vmdiCfg > 0) {
@@ -277,7 +277,8 @@ void init_settings() {
     global_settings.custom_gl_version = customGLVersion;
     global_settings.fsr1_setting = fsr1Setting;
     global_settings.hide_mg_env_level = hideMGEnvLevel;
-    global_settings.enable_vmdi = enableVMDI;
+    // [REMOVED] orphan ref: // enableVMDI local var removed — enable_vmdi set via targetMdMode above
+// global_settings.enable_vmdi already set in init_settings_post()
 #endif
 
     LOG_V("[MobileGlues] Setting: enableAngle                 = %s",
@@ -303,7 +304,7 @@ void init_settings() {
     LOG_V("[MobileGlues] Setting: fsr1Setting                 = %i", static_cast<int>(global_settings.fsr1_setting))
     LOG_V("[MobileGlues] Setting: hideMGEnvLevel              = %i",
           static_cast<int>(global_settings.hide_mg_env_level))
-    LOG_V("[MobileGlues] Setting: enableVMDI                  = %s",
+    // [REMOVED] orphan ref: LOG_V("[MobileGlues] Setting: enableVMDI                  = %s",
           global_settings.enable_vmdi ? "true" : "false")
 
     GLVersion =
