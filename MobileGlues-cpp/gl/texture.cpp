@@ -824,9 +824,22 @@ void glTexParameterf(GLenum target, GLenum pname, GLfloat param) {
         return;
     }
 
+    // maxAnisotropyOverride: cap the anisotropy level the game requests so that
+    // weak GPUs (e.g. PowerVR GE8320) are not stalled by excessive fillrate cost.
+    // override == 0 means "respect the game's value" (default, no change).
+    if (pname == GL_TEXTURE_MAX_ANISOTROPY_EXT && global_settings.max_anisotropy_override > 0) {
+        const GLfloat override_f = static_cast<GLfloat>(global_settings.max_anisotropy_override);
+        if (param > override_f) {
+            LOG_I("[MobileGlues] maxAnisotropyOverride = %d, capping requested %.0f",
+                  global_settings.max_anisotropy_override, param)
+            param = override_f;
+        }
+    }
+
     GLES.glTexParameterf(target, pname, param);
     CHECK_GL_ERROR
 }
+
 
 #define GET_TEXTURE_OBJECT(target)                                                                                     \
     unsigned __currentUnitIndex = GetCurrentTextureUnitIndex();                                                        \
@@ -1794,6 +1807,16 @@ void glTexParameteri(GLenum target, GLenum pname, GLint param) {
     if (pname == GL_TEXTURE_LOD_BIAS_QCOM && !g_gles_caps.GL_QCOM_texture_lod_bias) {
         LOG_D("Does not support GL_QCOM_texture_lod_bias, skipped!")
         return;
+    }
+
+    // maxAnisotropyOverride: same cap as glTexParameterf, for engines that call the
+    // integer variant with GL_TEXTURE_MAX_ANISOTROPY_EXT.
+    if (pname == GL_TEXTURE_MAX_ANISOTROPY_EXT && global_settings.max_anisotropy_override > 0) {
+        if (param > global_settings.max_anisotropy_override) {
+            LOG_I("[MobileGlues] maxAnisotropyOverride = %d, capping requested %d",
+                  global_settings.max_anisotropy_override, param)
+            param = global_settings.max_anisotropy_override;
+        }
     }
 
     GLES.glTexParameteri(target, pname, param);
