@@ -183,6 +183,17 @@ void glGetIntegerv(GLenum pname, GLint* params) {
 
 GLenum glGetError() {
     LOG()
+    // forceGlGetErrorSkip: when true (default), skip the driver call entirely
+    // and return GL_NO_ERROR immediately. The driver call costs CPU on hot paths
+    // (especially on Adreno/Mali where glGetError flushes the command stream);
+    // callers that never inspect errors pay that cost for nothing. The frontend
+    // error latch is still consumed so it does not leak to a later call.
+    if (global_settings.force_gl_get_error_skip) {
+        LOG_I("[MobileGlues] forceGlGetErrorSkip = true, skipping GLES.glGetError()")
+        g_frontend_error = GL_NO_ERROR;
+        return GL_NO_ERROR;
+    }
+
     // Both are consumed whether or not they get reported: leaving either latched
     // would hand it to a later, unrelated glGetError.
     const GLenum backend = GLES.glGetError();
