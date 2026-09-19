@@ -43,7 +43,7 @@ void init_settings() {
     if (!success) {
         success = config_refresh();
         if (!success) {
-            LOG_V("Failed to load config. Use default config.")
+            LOG_V("Failed to load config. Use default config.");
         }
     }
 
@@ -84,6 +84,7 @@ void init_settings() {
                 targetMdMode = MG_MultiDrawMode::MG_IMDBI_OPTIMIZED;
             } else {
                 // [REMOVED] orphan ref: int vmdiCfg = config_get_int("enableVMDI");
+            int vmdiCfg = config_get_int("enableVMDI");
                 if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdiEnable");
                 if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdi");
                 if (vmdiCfg > 0) {
@@ -182,10 +183,10 @@ void init_settings() {
     int pgwVersion = 0;
     GetEnvVarInt("PGW_VERSION_CODE", &pgwVersion, 0);
 
-    LOG_V("MG_DIR_PATH = %s", mg_directory_path ? mg_directory_path : "(default)")
+    LOG_V("MG_DIR_PATH = %s", mg_directory_path ? mg_directory_path : "(default)");
 
     if (isInPluginApp == 0 && fclVersion == 0 && zlVersion == 0 && pgwVersion == 0 && !is_custom_mg_dir) {
-        LOG_V("Unsupported launcher detected, force using default config.")
+        LOG_V("Unsupported launcher detected, force using default config.");
         angleConfig = AngleConfig::DisableIfPossible;
         noErrorConfig = NoErrorConfig::Auto;
         enableExtComputeShader = false;
@@ -200,7 +201,7 @@ void init_settings() {
     AngleMode finalAngleMode = AngleMode::Disabled;
     std::string gpuString = getGPUInfo();
     const char* gpu_cstr = gpuString.c_str();
-    LOG_D("GPU: %s", gpu_cstr ? gpu_cstr : "(unknown)")
+    LOG_D("GPU: %s", gpu_cstr ? gpu_cstr : "(unknown)");
 
     int hasVk12 = hasVulkan12();
     int isQcom = isAdreno(gpu_cstr);
@@ -209,12 +210,12 @@ void init_settings() {
     int is830 = isAdreno830(gpu_cstr);
     bool isANGLESupported = checkIfANGLESupported(gpu_cstr);
 
-    LOG_D("Has Vulkan 1.2? = %s", hasVk12 ? "true" : "false")
-    LOG_D("Is Adreno? = %s", isQcom ? "true" : "false")
-    LOG_D("Is Adreno 730? = %s", is730 ? "true" : "false")
-    LOG_D("Is Adreno 740? = %s", is740 ? "true" : "false")
-    LOG_D("Is Adreno 830? = %s", is830 ? "true" : "false")
-    LOG_D("Is ANGLE supported? = %s", isANGLESupported ? "true" : "false")
+    LOG_D("Has Vulkan 1.2? = %s", hasVk12 ? "true" : "false");
+    LOG_D("Is Adreno? = %s", isQcom ? "true" : "false");
+    LOG_D("Is Adreno 730? = %s", is730 ? "true" : "false");
+    LOG_D("Is Adreno 740? = %s", is740 ? "true" : "false");
+    LOG_D("Is Adreno 830? = %s", is830 ? "true" : "false");
+    LOG_D("Is ANGLE supported? = %s", isANGLESupported ? "true" : "false");
 
     switch (angleConfig) {
     case AngleConfig::ForceDisable:
@@ -242,7 +243,7 @@ void init_settings() {
     global_settings.angle = finalAngleMode;
     global_settings.angle_config = angleConfig;
     global_settings.angle_supported = isANGLESupported;
-    LOG_D("Final ANGLE setting: %d", static_cast<int>(global_settings.angle))
+    LOG_D("Final ANGLE setting: %d", static_cast<int>(global_settings.angle));
     global_settings.buffer_coherent_as_flush = (global_settings.angle == AngleMode::Disabled);
 
     if (global_settings.angle == AngleMode::Enabled) {
@@ -278,34 +279,34 @@ void init_settings() {
     global_settings.fsr1_setting = fsr1Setting;
     global_settings.hide_mg_env_level = hideMGEnvLevel;
     // [REMOVED] orphan ref: // enableVMDI local var removed — enable_vmdi set via targetMdMode above
-// global_settings.enable_vmdi already set in init_settings_post()
+// global_settings.enable_vmdi already set in init_settings_post();
 #endif
 
     LOG_V("[MobileGlues] Setting: enableAngle                 = %s",
-          global_settings.angle == AngleMode::Enabled ? "true" : "false")
-    LOG_V("[MobileGlues] Setting: ignoreError                 = %i", static_cast<int>(global_settings.ignore_error))
+          global_settings.angle == AngleMode::Enabled ? "true" : "false");
+    LOG_V("[MobileGlues] Setting: ignoreError                 = %i", static_cast<int>(global_settings.ignore_error));
     LOG_V("[MobileGlues] Setting: enableExtComputeShader      = %s",
-          global_settings.ext_compute_shader ? "true" : "false")
-    LOG_V("[MobileGlues] Setting: enableExtTimerQuery         = %s", global_settings.ext_timer_query ? "true" : "false")
+          global_settings.ext_compute_shader ? "true" : "false");
+    LOG_V("[MobileGlues] Setting: enableExtTimerQuery         = %s", global_settings.ext_timer_query ? "true" : "false");
     LOG_V("[MobileGlues] Setting: enableExtDirectStateAccess  = %s",
-          global_settings.ext_direct_state_access ? "true" : "false")
+          global_settings.ext_direct_state_access ? "true" : "false");
     LOG_V("[MobileGlues] Setting: maxGlslCacheSize            = %i",
-          static_cast<int>(global_settings.max_glsl_cache_size / 1024 / 1024))
+          static_cast<int>(global_settings.max_glsl_cache_size / 1024 / 1024));
     LOG_V("[MobileGlues] Setting: angleDepthClearFixMode      = %i",
-          static_cast<int>(global_settings.angle_depth_clear_fix_mode))
+          static_cast<int>(global_settings.angle_depth_clear_fix_mode));
     LOG_V("[MobileGlues] Setting: bufferCoherentAsFlush       = %i",
-          static_cast<int>(global_settings.buffer_coherent_as_flush))
+          static_cast<int>(global_settings.buffer_coherent_as_flush));
     if (global_settings.custom_gl_version.isEmpty()) {
         LOG_V("[MobileGlues] Setting: customGLVersion             = (default)");
     } else {
         LOG_V("[MobileGlues] Setting: customGLVersion             = %s",
               global_settings.custom_gl_version.toString().c_str());
     }
-    LOG_V("[MobileGlues] Setting: fsr1Setting                 = %i", static_cast<int>(global_settings.fsr1_setting))
+    LOG_V("[MobileGlues] Setting: fsr1Setting                 = %i", static_cast<int>(global_settings.fsr1_setting));
     LOG_V("[MobileGlues] Setting: hideMGEnvLevel              = %i",
-          static_cast<int>(global_settings.hide_mg_env_level))
+          static_cast<int>(global_settings.hide_mg_env_level));
     // [REMOVED] orphan ref: LOG_V("[MobileGlues] Setting: enableVMDI                  = %s",
-          global_settings.enable_vmdi ? "true" : "false")
+          global_settings.enable_vmdi ? "true" : "false");
 
     GLVersion =
         global_settings.custom_gl_version.isEmpty() ? Version(DEFAULT_GL_VERSION) : global_settings.custom_gl_version;
@@ -531,13 +532,13 @@ static int md_parse_order_list(const char* key, const std::string& raw, bool all
             if (allow_native) {
                 out[n++] = {true, B::Auto};
             } else {
-                LOG_W_FORCE("%s: 'native' is only meaningful in the global multidrawOrder, ignored", key)
+                LOG_W_FORCE("%s: 'native' is only meaningful in the global multidrawOrder, ignored", key);
             }
             continue;
         }
         B b;
         if (!md_parse_backend(s, &b) || b == B::Auto) {
-            LOG_W_FORCE("%s: '%s' is not a backend name, ignored", key, s.c_str())
+            LOG_W_FORCE("%s: '%s' is not a backend name, ignored", key, s.c_str());
             continue;
         }
         out[n++] = {false, b};
@@ -644,7 +645,7 @@ void set_multidraw_setting() { // should be called after init_gles_target()
     }
     for (const auto& d : k_md_entries) {
         if (config_get_string(const_cast<char*>(d.legacy_mode_key)) != nullptr) {
-            LOG_W_FORCE("%s is no longer used; see multidrawOrder / %s", d.legacy_mode_key, d.order_key)
+            LOG_W_FORCE("%s is no longer used; see multidrawOrder / %s", d.legacy_mode_key, d.order_key);
             break;
         }
     }
@@ -699,7 +700,7 @@ void init_settings_post() {
         // The multidraw compute shader declares exactly four shader storage
         // blocks, which is the GLES 3.1 guaranteed minimum.
         compute = ssbo_blocks >= 4;
-        if (!compute) LOG_W_FORCE("Compute multidraw needs 4 SSBO blocks, driver reports %d", ssbo_blocks)
+        if (!compute) LOG_W_FORCE("Compute multidraw needs 4 SSBO blocks, driver reports %d", ssbo_blocks);
     }
 
     // ---- per-entry-point backend selection ----
@@ -742,7 +743,7 @@ void init_settings_post() {
             if (!order_str.empty()) order_str += " > ";
             order_str += md_backend_name(global_settings.multidraw_order[i][k]);
         }
-        LOG_V("[MobileGlues] %-34s = %s", k_md_entries[i].order_key, order_str.c_str())
+        LOG_V("[MobileGlues] %-34s = %s", k_md_entries[i].order_key, order_str.c_str());
     }
 }
 
@@ -779,7 +780,7 @@ std::string dump_settings_string(std::string prefix) {
     }
 
     ss << prefix << "AngleDepthClearFixMode: "
-       << (global_settings.angle_depth_clear_fix_mode == AngleDepthClearFixMode::Disabled ? "Disabled" : "Enabled")
+       << (global_settings.angle_depth_clear_fix_mode == AngleDepthClearFixMode::Disabled ? "Disabled" : "Enabled");
        << "\n";
 
     ss << prefix << "BufferCoherentAsFlush: " << (global_settings.buffer_coherent_as_flush ? "True" : "False") << "\n";
@@ -812,9 +813,9 @@ std::string dump_settings_string(std::string prefix) {
     ss << "\n";
 
     ss << prefix << "HideMGEnvLevel: "
-       << ((global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled)
+       << ((global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled);
                ? "Disabled"
-               : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)))
+               : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)));
        << "\n";
 
     ss << prefix << "EnableVMDI: " << (global_settings.enable_vmdi ? "True" : "False") << "\n";
