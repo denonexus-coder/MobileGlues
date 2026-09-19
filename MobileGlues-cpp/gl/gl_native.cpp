@@ -110,7 +110,7 @@ NATIVE_FUNCTION_HEAD(void, glPolygonOffset, GLfloat factor, GLfloat units) NATIV
 NATIVE_FUNCTION_HEAD(void, glReleaseShaderCompiler) NATIVE_FUNCTION_END_NO_RETURN(void, glReleaseShaderCompiler)
 //NATIVE_FUNCTION_HEAD(void, glRenderbufferStorage, GLenum target, GLenum internalformat, GLsizei width, GLsizei height) NATIVE_FUNCTION_END_NO_RETURN(void, glRenderbufferStorage, target,internalformat,width,height)
 NATIVE_FUNCTION_HEAD(void, glSampleCoverage, GLfloat value, GLboolean invert) NATIVE_FUNCTION_END_NO_RETURN(void, glSampleCoverage, value,invert)
-NATIVE_FUNCTION_HEAD(void, glScissor, GLint x, GLint y, GLsizei width, GLsizei height) NATIVE_FUNCTION_END_NO_RETURN(void, glScissor, x,y,width,height)
+//NATIVE_FUNCTION_HEAD(void, glScissor, GLint x, GLint y, GLsizei width, GLsizei height) NATIVE_FUNCTION_END_NO_RETURN(void, glScissor, x,y,width,height) // implemented in gl/FSR1/FSR1.cpp
 NATIVE_FUNCTION_HEAD(void, glShaderBinary, GLsizei count, const GLuint *shaders, GLenum binaryformat, const void *binary, GLsizei length) NATIVE_FUNCTION_END_NO_RETURN(void, glShaderBinary, count,shaders,binaryformat,binary,length)
 //NATIVE_FUNCTION_HEAD(void, glShaderSource, GLuint shader, GLsizei count, const GLchar *const*string, const GLint *length) NATIVE_FUNCTION_END_NO_RETURN(void, glShaderSource, shader,count,string,length)
 NATIVE_FUNCTION_HEAD(void, glStencilFunc, GLenum func, GLint ref, GLuint mask) NATIVE_FUNCTION_END_NO_RETURN(void, glStencilFunc, func,ref,mask)
