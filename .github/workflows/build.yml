@@ -12,12 +12,19 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Cache build
+        uses: actions/cache@v3
+        with:
+          path: MobileGlues-cpp/build
+          key: ${{ runner.os }}-mg-arm64-${{ hashFiles('MobileGlues-cpp/**/*.cpp', 'MobileGlues-cpp/**/*.h', 'MobileGlues-cpp/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-mg-arm64-
+
       - name: Build MobileGlues
         run: |
           cd MobileGlues-cpp
 
           NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT}}"
-
           if [ -z "$NDK" ]; then
             NDK="$(find "$ANDROID_SDK_ROOT/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
           fi
@@ -28,10 +35,20 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS_RELEASE="-O3 -DNDEBUG -fvisibility=default" \
+            -DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG -fvisibility=default" \
+            -DCMAKE_SHARED_LINKER_FLAGS_RELEASE="-Wl,--export-dynamic" \
             -DSTATICLIB=OFF \
-            -DCMAKE_C_FLAGS=-Wno-error=implicit-function-declaration
+            -DCMAKE_C_FLAGS="-Wno-error=implicit-function-declaration"
 
-          cmake --build build --config Release --target mobileglues
+          cmake --build build --config Release --target mobileglues --parallel $(nproc)
+
+      - name: Strip symbols
+        run: |
+          NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT}}"
+          STRIP="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          $STRIP --strip-unneeded MobileGlues-cpp/build/libmobileglues.so || true
 
       - name: Compress lib
         run: |
