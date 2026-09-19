@@ -812,9 +812,9 @@ std::string dump_settings_string(std::string prefix) {
     ss << "\n";
 
     ss << prefix << "HideMGEnvLevel: "
-       << (global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled)
+       << ((global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled)
                ? "Disabled"
-               : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)));
+               : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)))
        << "\n";
 
     ss << prefix << "EnableVMDI: " << (global_settings.enable_vmdi ? "True" : "False") << "\n";
