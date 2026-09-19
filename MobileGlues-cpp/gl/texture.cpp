@@ -1434,11 +1434,22 @@ void glTexParameteriv(GLenum target, GLenum pname, const GLint* params) {
     if (pname == GL_TEXTURE_SWIZZLE_RGBA) {
         LOG_D("find GL_TEXTURE_SWIZZLE_RGBA, now use glTexParameteri")
         if (params) {
-            // deferred those call to draw call?
-            GLES.glTexParameteri(target, GL_TEXTURE_SWIZZLE_R, params[0]);
-            GLES.glTexParameteri(target, GL_TEXTURE_SWIZZLE_G, params[1]);
-            GLES.glTexParameteri(target, GL_TEXTURE_SWIZZLE_B, params[2]);
-            GLES.glTexParameteri(target, GL_TEXTURE_SWIZZLE_A, params[3]);
+            if (global_settings.texture_swizzle_mode == 1) {
+                // textureSwizzleMode = Force: issue ONE glTexParameteriv call for
+                // GL_TEXTURE_SWIZZLE_RGBA so that drivers with native RGBA swizzle
+                // support receive the values atomically rather than per-channel.
+                LOG_I("[MobileGlues] textureSwizzleMode = 1, forwarding GL_TEXTURE_SWIZZLE_RGBA via glTexParameteriv (params=[%d,%d,%d,%d])",
+                      params[0], params[1], params[2], params[3])
+                GLES.glTexParameteriv(target, GL_TEXTURE_SWIZZLE_RGBA, params);
+            } else {
+                // textureSwizzleMode = Auto (default): split into four individual
+                // glTexParameteri calls as before (ES 3.0 compat).
+                // deferred those call to draw call?
+                GLES.glTexParameteri(target, GL_TEXTURE_SWIZZLE_R, params[0]);
+                GLES.glTexParameteri(target, GL_TEXTURE_SWIZZLE_G, params[1]);
+                GLES.glTexParameteri(target, GL_TEXTURE_SWIZZLE_B, params[2]);
+                GLES.glTexParameteri(target, GL_TEXTURE_SWIZZLE_A, params[3]);
+            }
 
             // save states for now
             GET_TEXTURE_OBJECT(target);
@@ -1766,16 +1777,6 @@ void glTexParameteri(GLenum target, GLenum pname, GLint param) {
     if (pname == GL_TEXTURE_LOD_BIAS_QCOM && !g_gles_caps.GL_QCOM_texture_lod_bias) {
         LOG_D("Does not support GL_QCOM_texture_lod_bias, skipped!")
         return;
-    }
-
-    // textureSwizzleMode: when 1 (Force), log and explicitly forward every
-    // individual swizzle channel set so drivers that lie about native swizzle
-    // support still receive the correct value.
-    // Mode 0 (Auto/default) falls through to the same GLES call unchanged.
-    if (global_settings.texture_swizzle_mode == 1 &&
-        (pname == GL_TEXTURE_SWIZZLE_R || pname == GL_TEXTURE_SWIZZLE_G ||
-         pname == GL_TEXTURE_SWIZZLE_B || pname == GL_TEXTURE_SWIZZLE_A)) {
-        LOG_I("[MobileGlues] textureSwizzleMode = 1, forcing swizzle pname=0x%x param=%d", pname, param)
     }
 
     GLES.glTexParameteri(target, pname, param);
