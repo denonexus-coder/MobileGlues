@@ -10,6 +10,7 @@
 #include "../gl/mg.h"
 #include "cJSON.h"
 #include "stats.h"
+#include <cmath>
 #include <cerrno>
 #include <stdio.h>
 #include <stdlib.h>
@@ -187,6 +188,17 @@ int config_get_int_path(const char* path) {
     if (cJSON_IsBool(item))    return cJSON_IsTrue(item) ? 1 : 0;
     if (cJSON_IsString(item))  return atoi(item->valuestring);
     return -1;
+}
+
+float config_get_float_path(const char* path) {
+    if (path == NULL) return std::nanf("");
+
+    cJSON* item = config_navigate(path);
+    if (item == NULL) return std::nanf("");
+
+    if (cJSON_IsNumber(item)) return static_cast<float>(item->valuedouble);
+    if (cJSON_IsString(item) && item->valuestring) return static_cast<float>(std::atof(item->valuestring));
+    return std::nanf("");
 }
 
 char* config_get_string_path(const char* path) {

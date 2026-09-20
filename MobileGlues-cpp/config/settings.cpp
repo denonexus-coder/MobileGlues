@@ -6,6 +6,7 @@
 // End of Source File Header
 
 #include "settings.h"
+#include <cmath>
 #include <strings.h>
 #include "config.h"
 #include "../gl/log.h"
@@ -859,6 +860,18 @@ void mg_v3_apply_settings() {
     global_settings.texture_swizzle_mode      = mg_cfg_int("textureSwizzleMode", 0);
     global_settings.max_anisotropy_override   = mg_cfg_int("maxAnisotropyOverride", 0);
     global_settings.force_depth_precision_fix = mg_cfg_int("forceDepthPrecisionFix", 0) > 0;
+
+    // fsr1Sharpness: nitidez do FSR1 (0.0–1.0, default 0.75)
+    // Só tem efeito quando fsr1Setting != Disabled, mas ler incondicional
+    // é seguro — o consumer (FSR1.cpp) ignora se FSR1 off.
+    {
+        float sharp = config_get_float_path("fsr1Sharpness");
+        if (!std::isnan(sharp)) {
+            if (sharp < 0.0f) sharp = 0.0f;
+            if (sharp > 1.0f) sharp = 1.0f;
+            global_settings.fsr1_sharpness = sharp;
+        }
+    }
 
     int bin_cache_cfg = config_get_bool_path("useProgramBinaryCache", -1);
     if (bin_cache_cfg < 0) {
