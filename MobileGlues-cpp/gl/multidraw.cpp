@@ -135,6 +135,32 @@ static void mg_rebase_indices_to_u32(GLuint* dst, const void* src, GLsizei count
 
 #undef MG_REBASE_LOOP
 }
+// NEON-optimized index rebasing for GL_UNSIGNED_SHORT -> uint32 without restart.
+static void mg_rebase_u16_to_u32_neon(GLuint* dst, const uint16_t* src, GLsizei count, GLuint bv) {
+    uint32x4_t vbase = vdupq_n_u32(bv);
+    GLsizei j = 0;
+    for (; j + 16 <= count; j += 16) {
+        uint16x8_t v0 = vld1q_u16(src + j);
+        uint16x8_t v1 = vld1q_u16(src + j + 8);
+        uint32x4_t a = vaddq_u32(vmovl_u16(vget_low_u16(v0)),  vbase);
+        uint32x4_t b = vaddq_u32(vmovl_u16(vget_high_u16(v0)), vbase);
+        uint32x4_t c = vaddq_u32(vmovl_u16(vget_low_u16(v1)),  vbase);
+        uint32x4_t d = vaddq_u32(vmovl_u16(vget_high_u16(v1)), vbase);
+        vst1q_u32(dst + j,      a);
+        vst1q_u32(dst + j + 4,  b);
+        vst1q_u32(dst + j + 8,  c);
+        vst1q_u32(dst + j + 12, d);
+    }
+    for (; j + 8 <= count; j += 8) {
+        uint16x8_t v = vld1q_u16(src + j);
+        uint32x4_t a = vaddq_u32(vmovl_u16(vget_low_u16(v)),  vbase);
+        uint32x4_t b = vaddq_u32(vmovl_u16(vget_high_u16(v)), vbase);
+        vst1q_u32(dst + j,     a);
+        vst1q_u32(dst + j + 4, b);
+    }
+    for (; j < count; j++) dst[j] = (GLuint)src[j] + bv;
+}
+
 
 // Vertices per primitive for the separable modes. 0 means "not separable, do not
 // fuse"; is_strip_like_mode covers those already.
@@ -833,10 +859,18 @@ void mg_glMultiDrawElementsBaseVertex_drawelements(GLenum mode, GLsizei* counts,
                 }
                 continue;
             }
-            mg_rebase_indices_to_u32(rebased.data(), srcData, count, type, bv, restart_enabled, restart_value);
+            if (type == GL_UNSIGNED_SHORT && !restart_enabled) {
+                mg_rebase_u16_to_u32_neon(rebased.data(), static_cast<const uint16_t*>(srcData), count, static_cast<GLuint>(bv));
+            } else {
+                mg_rebase_indices_to_u32(rebased.data(), srcData, count, type, bv, restart_enabled, restart_value);
+            }
             GLES.glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
         } else if (indices[i] != nullptr) {
-            mg_rebase_indices_to_u32(rebased.data(), indices[i], count, type, bv, restart_enabled, restart_value);
+            if (type == GL_UNSIGNED_SHORT && !restart_enabled) {
+                mg_rebase_u16_to_u32_neon(rebased.data(), static_cast<const uint16_t*>(indices[i]), count, static_cast<GLuint>(bv));
+            } else {
+                mg_rebase_indices_to_u32(rebased.data(), indices[i], count, type, bv, restart_enabled, restart_value);
+            }
         } else {
             // No element buffer bound and a null client pointer: there is nothing
             // to read. GL leaves this undefined, and reading it is a segfault at
@@ -1305,9 +1339,9 @@ static GLuint compile_compute_program(const std::string& src, const char* what) 
     // Desabilitamos o compute permanentemente.
     // ─────────────────────────────────────────────────────────────
     const char* renderer = (const char*)GLES.glGetString(GL_RENDERER);
-    if (renderer && strstr(renderer, "PowerVR")) {
-        LOG_I("multidraw compute: PowerVR detectado — usando fallback CPU (mais rápido)");
-        return 0;  // força fallback CPU em todas as chamadas
+    if (global_settings.disable_compute_on_weak_gpu && renderer && strstr(renderer, "PowerVR")) {
+        LOG_I("multidraw compute: PowerVR detected — disabling compute (CPU fallback is 25x faster)");
+        return 0;  // force CPU fallback
     }
     // ─────────────────────────────────────────────────────────────
 

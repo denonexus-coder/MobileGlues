@@ -856,6 +856,9 @@ void mg_v3_apply_settings() {
     // Extensões avançadas
     global_settings.enable_ext_gl43           = mg_cfg_int("enableExtGL43", 0) > 0;
     global_settings.force_gl_get_error_skip   = mg_cfg_int("forceGlGetErrorSkip", 1) > 0;
+    // disableComputeOnWeakGpu: when true (default), auto-disable compute shaders
+    // on GPUs detected to be too slow for them (e.g. PowerVR GE8320).
+    global_settings.disable_compute_on_weak_gpu = mg_cfg_int("disableComputeOnWeakGpu", 1) > 0;
     global_settings.buffer_upload_mode        = mg_cfg_int("bufferUploadMode", 0);
     global_settings.texture_swizzle_mode      = mg_cfg_int("textureSwizzleMode", 0);
     global_settings.max_anisotropy_override   = mg_cfg_int("maxAnisotropyOverride", 0);

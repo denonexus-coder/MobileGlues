@@ -202,7 +202,7 @@ GLenum glGetError() {
     // callers that never inspect errors pay that cost for nothing. The frontend
     // error latch is still consumed so it does not leak to a later call.
     if (global_settings.force_gl_get_error_skip) {
-        LOG_I("[MobileGlues] forceGlGetErrorSkip = true, skipping GLES.glGetError()")
+        LOG_D("[MobileGlues] forceGlGetErrorSkip=true: glGetError skipped")
         g_frontend_error = GL_NO_ERROR;
         return GL_NO_ERROR;
     }

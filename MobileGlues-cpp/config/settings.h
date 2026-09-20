@@ -227,6 +227,7 @@ struct global_settings_t {
     int  texture_swizzle_mode = 0;
     int  max_anisotropy_override = 0;
     bool force_gl_get_error_skip = true;
+    bool disable_compute_on_weak_gpu = true;  // auto-disable compute on slow GPUs (e.g. PowerVR)
     bool force_depth_precision_fix = false;
     // ─── FSR version & sharpness ────────────────────────────────────
     // fsr1_version: 1 = 5-tap (FSR1, mais nítido), 2 = 3-tap (FSR2,
