@@ -228,7 +228,20 @@ struct global_settings_t {
     int  max_anisotropy_override = 0;
     bool force_gl_get_error_skip = true;
     bool force_depth_precision_fix = false;
-    float fsr1_sharpness = 0.75f;
+    // ─── FSR version & sharpness ────────────────────────────────────
+    // fsr1_version: 1 = 5-tap (FSR1, mais nítido), 2 = 3-tap (FSR2,
+    // melhor performance em TBDR). Default 2.
+    int   fsr1_version = 2;
+
+    // Sharpness por versão (0.0 = passthrough, 1.0 = máximo).
+    // FSR1 usa 0.4 (blur de 5-tap é agressivo, menos sharpening basta)
+    // FSR2 usa 0.5 (blur de 3-tap é suave, precisa mais)
+    float fsr1_sharpness = 0.4f;
+    float fsr2_sharpness = 0.5f;
+
+    // Master switch de sharpening (aplica a ambas versões)
+    // false = usa shader de blit puro, independente de fsr1_version
+    bool  fsr_enable_sharpening = true;
     bool use_program_binary_cache = false;
 
     // IMDBI submodes

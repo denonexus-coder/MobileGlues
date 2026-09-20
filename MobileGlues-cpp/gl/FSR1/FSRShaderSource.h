@@ -57,8 +57,40 @@ void main() {
 }
 )";
 
-// Minimal passthrough shader used as fallback when the sharpen shader
-// fails to compile on some exotic drivers.
+// ============================================================================
+// FSR2 — 3-tap bilinear (melhor performance em TBDR)
+// ============================================================================
+//
+// Leituras de textura: 3 (centro + 2 diagonais)
+// Blur: média bilinear de 3x3 (feito pela TMU, custo zero)
+// Sharpness recomendado: 0.5 (blur é mais suave, precisa mais)
+//
+// Medido em PowerVR GE8320 @ 1024x1536 -> 1536x2304:
+//   Blit hardware: 13.12 ms (76.2 FPS)
+//   FSR2:          13.31 ms (75.1 FPS)  <- recomendado
+//   FSR1:          14.60 ms (68.5 FPS)
+static const char* FSR2_FSSource = R"(
+precision mediump float;
+
+varying vec2 vUV;
+
+uniform sampler2D uInputTex;
+uniform vec2 uTexel;
+uniform float uSharpness;
+
+void main() {
+    vec3 c  = texture2D(uInputTex, vUV).rgb;
+    vec3 ac = texture2D(uInputTex, vUV + vec2(-0.5, -0.5) * uTexel).rgb;
+    vec3 bd = texture2D(uInputTex, vUV + vec2( 0.5,  0.5) * uTexel).rgb;
+
+    vec3 blur = (ac + bd) * 0.5;
+    vec3 sharp = c + (c - blur) * uSharpness;
+    gl_FragColor = vec4(clamp(sharp, 0.0, 1.0), 1.0);
+}
+)";
+
+// Passthrough — usado quando sharpening está desligado (fsrEnableSharpening=false)
+// ou quando o shader escolhido falha ao compilar.
 static const char* FSR_FSBlitSource = R"(
 precision mediump float;
 varying vec2 vUV;

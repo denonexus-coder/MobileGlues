@@ -210,12 +210,27 @@ static GLuint CompileUpscaleProgram(bool* out_hardware_blit) {
     GLuint vs = CompileShader(GL_VERTEX_SHADER, FSR_VSSource, "VS");
     if (!vs) return 0;
 
-    // Try the sharpen shader first
-    GLuint fs = CompileShader(GL_FRAGMENT_SHADER, FSR_FSSource, "FS-sharpen");
+    const char* fs_source;
+    const char* fs_label;
+
+    if (!global_settings.fsr_enable_sharpening) {
+        fs_source = FSR_FSBlitSource;
+        fs_label  = "FS-blit-nosharpen";
+        LOG_D("FSR: sharpening disabled, using pure blit shader");
+    } else if (global_settings.fsr1_version == 1) {
+        fs_source = FSR_FSSource;
+        fs_label  = "FS-FSR1-5tap";
+        LOG_D("FSR: using FSR1 (5-tap) shader");
+    } else {
+        fs_source = FSR2_FSSource;
+        fs_label  = "FS-FSR2-3tap";
+        LOG_D("FSR: using FSR2 (3-tap) shader");
+    }
+
+    GLuint fs = CompileShader(GL_FRAGMENT_SHADER, fs_source, fs_label);
     if (!fs) {
-        // Fallback: minimal blit shader
-        LOG_D("FSR1: sharpen FS failed, falling back to passthrough blit");
-        fs = CompileShader(GL_FRAGMENT_SHADER, FSR_FSBlitSource, "FS-blit");
+        LOG_F("FSR: %s failed, falling back to passthrough blit", fs_label);
+        fs = CompileShader(GL_FRAGMENT_SHADER, FSR_FSBlitSource, "FS-blit-fallback");
         if (!fs) {
             glDeleteShader(vs);
             return 0;
@@ -518,8 +533,19 @@ void ApplyFSR() {
                              1.0f / static_cast<float>(FSR1_Context::g_renderHeight));
         }
         if (FSR1_Context::g_sharpnessLoc >= 0) {
-            // >= 0.0f: zero is a valid user choice (disables sharpening); only negatives are invalid
-            float sharpness = global_settings.fsr1_sharpness >= 0.0f ? global_settings.fsr1_sharpness : DEFAULT_SHARPNESS;
+            float sharpness;
+
+            if (!global_settings.fsr_enable_sharpening) {
+                // Blit shader ignora o valor, mas setar 0 é explícito
+                sharpness = 0.0f;
+            } else if (global_settings.fsr1_version == 1) {
+                sharpness = global_settings.fsr1_sharpness;
+                if (sharpness < 0.0f) sharpness = DEFAULT_SHARPNESS;
+            } else {
+                sharpness = global_settings.fsr2_sharpness;
+                if (sharpness < 0.0f) sharpness = DEFAULT_SHARPNESS;
+            }
+
             GLES.glUniform1f(FSR1_Context::g_sharpnessLoc, sharpness);
         }
         GLES.glBindVertexArray(FSR1_Context::g_quadVAO);

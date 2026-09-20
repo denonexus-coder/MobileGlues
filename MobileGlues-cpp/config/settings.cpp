@@ -861,9 +861,18 @@ void mg_v3_apply_settings() {
     global_settings.max_anisotropy_override   = mg_cfg_int("maxAnisotropyOverride", 0);
     global_settings.force_depth_precision_fix = mg_cfg_int("forceDepthPrecisionFix", 0) > 0;
 
-    // fsr1Sharpness: nitidez do FSR1 (0.0–1.0, default 0.75)
-    // Só tem efeito quando fsr1Setting != Disabled, mas ler incondicional
-    // é seguro — o consumer (FSR1.cpp) ignora se FSR1 off.
+    // ─── FSR version & sharpness (v3.1) ─────────────────────────────
+    //
+    // fsr1Version: 1 = 5-tap (FSR1), 2 = 3-tap (FSR2)
+    // Default 2 (3-tap; casa com performance de blit hardware)
+    {
+        int ver = mg_cfg_int("fsr1Version", 2);
+        if (ver < 1) ver = 1;
+        if (ver > 2) ver = 2;
+        global_settings.fsr1_version = ver;
+    }
+
+    // fsr1Sharpness: aplica quando fsr1Version=1 (5-tap)
     {
         float sharp = config_get_float_path("fsr1Sharpness");
         if (!std::isnan(sharp)) {
@@ -872,6 +881,28 @@ void mg_v3_apply_settings() {
             global_settings.fsr1_sharpness = sharp;
         }
     }
+
+    // fsr2Sharpness: aplica quando fsr1Version=2 (3-tap)
+    {
+        float sharp = config_get_float_path("fsr2Sharpness");
+        if (!std::isnan(sharp)) {
+            if (sharp < 0.0f) sharp = 0.0f;
+            if (sharp > 1.0f) sharp = 1.0f;
+            global_settings.fsr2_sharpness = sharp;
+        }
+    }
+
+    // fsrEnableSharpening: master switch (default true)
+    {
+        int enable = config_get_bool_path("fsrEnableSharpening", 1);
+        global_settings.fsr_enable_sharpening = enable > 0;
+    }
+
+    LOG_I("[MobileGlues] FSR: version=%d sharp1=%.2f sharp2=%.2f enable=%d",
+          global_settings.fsr1_version,
+          global_settings.fsr1_sharpness,
+          global_settings.fsr2_sharpness,
+          (int)global_settings.fsr_enable_sharpening);
 
     int bin_cache_cfg = config_get_bool_path("useProgramBinaryCache", -1);
     if (bin_cache_cfg < 0) {
