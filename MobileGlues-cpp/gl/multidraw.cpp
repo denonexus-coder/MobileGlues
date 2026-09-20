@@ -20,6 +20,8 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <cstring>
+#include <arm_neon.h>
 
 #define DEBUG 0
 
@@ -1297,6 +1299,18 @@ void main() {
 )";
 
 static GLuint compile_compute_program(const std::string& src, const char* what) {
+    // ─────────────────────────────────────────────────────────────
+    // PowerVR GE8320 tem 1 compute unit (32 threads).
+    // O fallback CPU é SEMPRE mais rápido nesta GPU.
+    // Desabilitamos o compute permanentemente.
+    // ─────────────────────────────────────────────────────────────
+    const char* renderer = (const char*)GLES.glGetString(GL_RENDERER);
+    if (renderer && strstr(renderer, "PowerVR")) {
+        LOG_I("multidraw compute: PowerVR detectado — usando fallback CPU (mais rápido)");
+        return 0;  // força fallback CPU em todas as chamadas
+    }
+    // ─────────────────────────────────────────────────────────────
+
     char compile_info[1024] = {};
 
     auto program = GLES.glCreateProgram();
