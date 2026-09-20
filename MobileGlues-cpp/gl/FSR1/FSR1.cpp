@@ -518,7 +518,8 @@ void ApplyFSR() {
                              1.0f / static_cast<float>(FSR1_Context::g_renderHeight));
         }
         if (FSR1_Context::g_sharpnessLoc >= 0) {
-            float sharpness = global_settings.fsr1_sharpness > 0.0f ? global_settings.fsr1_sharpness : DEFAULT_SHARPNESS;
+            // >= 0.0f: zero is a valid user choice (disables sharpening); only negatives are invalid
+            float sharpness = global_settings.fsr1_sharpness >= 0.0f ? global_settings.fsr1_sharpness : DEFAULT_SHARPNESS;
             GLES.glUniform1f(FSR1_Context::g_sharpnessLoc, sharpness);
         }
         GLES.glBindVertexArray(FSR1_Context::g_quadVAO);
