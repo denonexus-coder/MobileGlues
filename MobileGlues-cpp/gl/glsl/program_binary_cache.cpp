@@ -1,4 +1,4 @@
-// MobileGlues - gl/glsl/program_binary_cache.cpp
+#define DEBUG 0
 #include "program_binary_cache.h"
 #include "../shader_classifier.h"
 #include "../log.h"
