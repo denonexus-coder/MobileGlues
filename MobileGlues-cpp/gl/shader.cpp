@@ -20,7 +20,7 @@
 #define DEBUG 0
 
 struct shader_t shaderInfo;
-
+UnorderedMap<GLuint, std::string> g_shader_essl_map;
 UnorderedMap<GLuint, bool> shader_map_is_sampler_buffer_emulated;
 
 bool can_run_essl3(unsigned int esversion, const char* glsl) {
@@ -98,6 +98,7 @@ void glShaderSource(GLuint shader, GLsizei count, const GLchar* const* string, c
     if (!essl_src.empty()) {
         shaderInfo.id = shader;
         shaderInfo.converted = essl_src;
+        g_shader_essl_map[shader] = essl_src;
         const char* s[] = {essl_src.c_str()};
         GLES.glShaderSource(shader, count, s, nullptr);
         if (hardware->emulate_texture_buffer)
@@ -117,6 +118,15 @@ void glGetShaderiv(GLuint shader, GLenum pname, GLint* params) {
         LOG_W_FORCE("Now try to cheat.")
         *params = GL_TRUE;
     }
+    CHECK_GL_ERROR
+}
+
+void glDeleteShader(GLuint shader) {
+    LOG()
+    LOG_D("glDeleteShader(%d)", shader)
+    g_shader_essl_map.erase(shader);
+    if (hardware->emulate_texture_buffer) shader_map_is_sampler_buffer_emulated.erase(shader);
+    GLES.glDeleteShader(shader);
     CHECK_GL_ERROR
 }
 

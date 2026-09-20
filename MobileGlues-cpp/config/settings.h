@@ -229,6 +229,7 @@ struct global_settings_t {
     bool force_gl_get_error_skip = true;
     bool force_depth_precision_fix = false;
     float fsr1_sharpness = 0.75f;
+    bool use_program_binary_cache = false;
 
     // IMDBI submodes
     int  imdbi_backend_mode        = 1;   // 0=STITCHING 1=RING 2=UNROLL 3=COMPUTE

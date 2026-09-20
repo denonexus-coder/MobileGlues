@@ -22,6 +22,8 @@ extern "C"
     GLAPI GLAPIENTRY GLuint glCreateProgram();
     GLAPI GLAPIENTRY void glAttachShader(GLuint program, GLuint shader);
     GLAPI GLAPIENTRY GLuint glCreateShader(GLenum shaderType);
+    GLAPI GLAPIENTRY void glBindAttribLocation(GLuint program, GLuint index, const GLchar* name);
+    GLAPI GLAPIENTRY void glDeleteProgram(GLuint program);
     GLAPI GLAPIENTRY void glGetActiveUniformName(GLuint program, GLuint uniformIndex, GLsizei bufSize, GLsizei* length,
                                                  GLchar* uniformName);
 

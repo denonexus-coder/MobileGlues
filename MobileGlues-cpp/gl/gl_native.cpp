@@ -17,7 +17,7 @@
 
 //NATIVE_FUNCTION_HEAD(void, glActiveTexture, GLenum texture) NATIVE_FUNCTION_END_NO_RETURN(void, glActiveTexture, texture)
 //NATIVE_FUNCTION_HEAD(void, glAttachShader, GLuint program, GLuint shader) NATIVE_FUNCTION_END_NO_RETURN(void, glAttachShader, program,shader)
-NATIVE_FUNCTION_HEAD(void, glBindAttribLocation, GLuint program, GLuint index, const GLchar *name) NATIVE_FUNCTION_END_NO_RETURN(void, glBindAttribLocation, program,index,name)
+//NATIVE_FUNCTION_HEAD(void, glBindAttribLocation, GLuint program, GLuint index, const GLchar *name) NATIVE_FUNCTION_END_NO_RETURN(void, glBindAttribLocation, program,index,name) // moved to gl/program.cpp for binary cache tracking
 //NATIVE_FUNCTION_HEAD(void, glBindBuffer, GLenum target, GLuint buffer) NATIVE_FUNCTION_END_NO_RETURN(void, glBindBuffer, target,buffer)
 //NATIVE_FUNCTION_HEAD(void, glBindFramebuffer, GLenum target, GLuint framebuffer) NATIVE_FUNCTION_END_NO_RETURN(void, glBindFramebuffer, target,framebuffer)
 NATIVE_FUNCTION_HEAD(void, glBindRenderbuffer, GLenum target, GLuint renderbuffer) NATIVE_FUNCTION_END_NO_RETURN(void, glBindRenderbuffer, target,renderbuffer)
@@ -45,9 +45,9 @@ NATIVE_FUNCTION_HEAD(void, glCompressedTexSubImage2D, GLenum target, GLint level
 NATIVE_FUNCTION_HEAD(void, glCullFace, GLenum mode) NATIVE_FUNCTION_END_NO_RETURN(void, glCullFace, mode)
 //NATIVE_FUNCTION_HEAD(void, glDeleteBuffers, GLsizei n, const GLuint *buffers) NATIVE_FUNCTION_END_NO_RETURN(void, glDeleteBuffers, n,buffers)
 // NATIVE_FUNCTION_HEAD(void, glDeleteFramebuffers, GLsizei n, const GLuint *framebuffers) NATIVE_FUNCTION_END_NO_RETURN(void, glDeleteFramebuffers, n,framebuffers)   // implemented in gl/framebuffer.cpp
-NATIVE_FUNCTION_HEAD(void, glDeleteProgram, GLuint program) NATIVE_FUNCTION_END_NO_RETURN(void, glDeleteProgram, program)
+//NATIVE_FUNCTION_HEAD(void, glDeleteProgram, GLuint program) NATIVE_FUNCTION_END_NO_RETURN(void, glDeleteProgram, program) // implemented in gl/program.cpp
 NATIVE_FUNCTION_HEAD(void, glDeleteRenderbuffers, GLsizei n, const GLuint *renderbuffers) NATIVE_FUNCTION_END_NO_RETURN(void, glDeleteRenderbuffers, n,renderbuffers)
-NATIVE_FUNCTION_HEAD(void, glDeleteShader, GLuint shader) NATIVE_FUNCTION_END_NO_RETURN(void, glDeleteShader, shader)
+//NATIVE_FUNCTION_HEAD(void, glDeleteShader, GLuint shader) NATIVE_FUNCTION_END_NO_RETURN(void, glDeleteShader, shader) // implemented in gl/shader.cpp
 //NATIVE_FUNCTION_HEAD(void, glDeleteTextures, GLsizei n, const GLuint *textures) NATIVE_FUNCTION_END_NO_RETURN(void, glDeleteTextures, n,textures)
 NATIVE_FUNCTION_HEAD(void, glDepthFunc, GLenum func) NATIVE_FUNCTION_END_NO_RETURN(void, glDepthFunc, func)
 NATIVE_FUNCTION_HEAD(void, glDepthMask, GLboolean flag) NATIVE_FUNCTION_END_NO_RETURN(void, glDepthMask, flag)

@@ -15,6 +15,7 @@
 #include "mg_vmdi_config.h"
 #include "../gl/mg_vmdi.h"
 #include "../gl/imdb_engine.h"
+#include "../gl/glsl/program_binary_cache.h"
 
 #define DEBUG 0
 
@@ -858,6 +859,18 @@ void mg_v3_apply_settings() {
     global_settings.texture_swizzle_mode      = mg_cfg_int("textureSwizzleMode", 0);
     global_settings.max_anisotropy_override   = mg_cfg_int("maxAnisotropyOverride", 0);
     global_settings.force_depth_precision_fix = mg_cfg_int("forceDepthPrecisionFix", 0) > 0;
+
+    int bin_cache_cfg = config_get_bool_path("useProgramBinaryCache", -1);
+    if (bin_cache_cfg < 0) {
+        bin_cache_cfg = config_get_bool_path("use_program_binary_cache", 0);
+    }
+    global_settings.use_program_binary_cache = bin_cache_cfg > 0;
+
+    extern char* mg_directory_path;
+    if (mg_directory_path) {
+        MG::ProgramBinaryCache::get_instance().set_cache_dir(std::string(mg_directory_path) + "/program_bin");
+    }
+    MG::ProgramBinaryCache::get_instance().set_enabled(global_settings.use_program_binary_cache);
 
     // Layer 3 — Debug
     global_settings.diag_enabled               = config_get_bool_path("diag.enabled", 0);

@@ -10,6 +10,8 @@
 #include <GL/gl.h>
 #include <string>
 
+#include "mg.h"
+
 struct shader_t {
     GLuint id;
     std::string converted;
@@ -22,6 +24,7 @@ struct shader_t {
 };
 
 extern struct shader_t shaderInfo;
+extern UnorderedMap<GLuint, std::string> g_shader_essl_map;
 
 #ifdef __cplusplus
 extern "C"
@@ -32,6 +35,7 @@ extern "C"
                                          const GLint* length);
 
     GLAPI GLAPIENTRY void glGetShaderiv(GLuint shader, GLenum pname, GLint* params);
+    GLAPI GLAPIENTRY void glDeleteShader(GLuint shader);
 
 #ifdef __cplusplus
 }
