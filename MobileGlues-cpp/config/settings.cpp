@@ -829,6 +829,240 @@ std::string dump_settings_string(std::string prefix) {
     return ss.str();
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+//  mg_log_all_settings_full — loga TODAS as configurações aplicadas.
+//  Chamada no fim de mg_v3_apply_settings(), depois que todos os campos
+//  já foram resolvidos e as exclusões mútuas já foram aplicadas.
+//  Usa LOG_I para aparecer sempre (independente de DEBUG).
+// ═══════════════════════════════════════════════════════════════════════
+static void mg_log_all_settings_full() {
+    const auto& S = global_settings;
+    const char* PFX = "[MobileGlues] ";
+
+#define MG_BOOL(v)  ((v) ? "true" : "false")
+#define MG_SEP()    LOG_I("%s────────────────────────────────────────────────────", PFX)
+
+    LOG_I("%s", PFX);
+    LOG_I("%s╔══════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s║       MOBILEGLUES — CONFIGURAÇÃO COMPLETA        ║", PFX);
+    LOG_I("%s╚══════════════════════════════════════════════════╝", PFX);
+
+    // ── 1. ANGLE / Backend OpenGL ─────────────────────────────────────
+    MG_SEP();
+    LOG_I("%s[ANGLE]", PFX);
+    {
+        const char* cfg_str = "?";
+        switch (S.angle_config) {
+        case AngleConfig::DisableIfPossible: cfg_str = "DisableIfPossible (0)"; break;
+        case AngleConfig::EnableIfPossible:  cfg_str = "EnableIfPossible  (1)"; break;
+        case AngleConfig::ForceDisable:      cfg_str = "ForceDisable      (2)"; break;
+        case AngleConfig::ForceEnable:       cfg_str = "ForceEnable       (3)"; break;
+        }
+        LOG_I("%s  enableANGLE    (config)  = %s", PFX, cfg_str);
+        LOG_I("%s  angle_supported (hw)     = %s", PFX, MG_BOOL(S.angle_supported));
+        LOG_I("%s  angle           (FINAL)  = %s", PFX,
+              S.angle == AngleMode::Enabled ? "ENABLED" : "DISABLED");
+        if (S.angle_config == AngleConfig::EnableIfPossible && !S.angle_supported)
+            LOG_I("%s  ⚠  EnableIfPossible mas GPU não suporta → ANGLE desativado", PFX);
+    }
+
+    // ── 2. EXTENSÕES ──────────────────────────────────────────────────
+    MG_SEP();
+    LOG_I("%s[EXTENSÕES]", PFX);
+    LOG_I("%s  enableExtComputeShader     = %s", PFX, MG_BOOL(S.ext_compute_shader));
+    LOG_I("%s  enableExtTimerQuery        = %s", PFX, MG_BOOL(S.ext_timer_query));
+    LOG_I("%s  enableExtDirectStateAccess = %s", PFX, MG_BOOL(S.ext_direct_state_access));
+    LOG_I("%s  enableExtGL43              = %s", PFX, MG_BOOL(S.enable_ext_gl43));
+
+    // ── 3. ERROS E PRECISÃO ───────────────────────────────────────────
+    MG_SEP();
+    LOG_I("%s[ERROS E PRECISÃO]", PFX);
+    {
+        const char* err_str = "None      — erros GL normais (0)";
+        if (S.ignore_error == IgnoreErrorLevel::Partial)
+            err_str = "Partial   — ignora erros não-críticos (1)";
+        else if (S.ignore_error == IgnoreErrorLevel::Full)
+            err_str = "Full      — ignora TODOS os erros GL (2) ⚠";
+        LOG_I("%s  ignoreError                = %s", PFX, err_str);
+    }
+    LOG_I("%s  forceGlGetErrorSkip        = %s  (pula glGetError em hot-paths)", PFX,
+          MG_BOOL(S.force_gl_get_error_skip));
+    LOG_I("%s  forceDepthPrecisionFix     = %s", PFX, MG_BOOL(S.force_depth_precision_fix));
+    LOG_I("%s  angleDepthClearFixMode     = %d  (0=off 1=modo1 2=modo2)", PFX,
+          static_cast<int>(S.angle_depth_clear_fix_mode));
+    LOG_I("%s  disableComputeOnWeakGpu    = %s  (auto-desativa compute em GPU lenta)", PFX,
+          MG_BOOL(S.disable_compute_on_weak_gpu));
+
+    // ── 4. VERSÃO GL E CACHE ──────────────────────────────────────────
+    MG_SEP();
+    LOG_I("%s[VERSÃO GL E CACHE]", PFX);
+    LOG_I("%s  customGLVersion            = %s", PFX,
+          S.custom_gl_version.isEmpty()
+              ? "(default = OpenGL 4.0)"
+              : S.custom_gl_version.toString().c_str());
+    LOG_I("%s  maxGlslCacheSize           = %d MB  (0 = cache desativado)", PFX,
+          static_cast<int>(S.max_glsl_cache_size / 1024 / 1024));
+    LOG_I("%s  useProgramBinaryCache      = %s", PFX, MG_BOOL(S.use_program_binary_cache));
+    LOG_I("%s  hideMGEnvLevel             = %d  (0=off 1=oculta versão/renderer)", PFX,
+          static_cast<int>(S.hide_mg_env_level));
+
+    // ── 5. BUFFER E TEXTURA ───────────────────────────────────────────
+    MG_SEP();
+    LOG_I("%s[BUFFER E TEXTURA]", PFX);
+    LOG_I("%s  bufferCoherentAsFlush      = %s", PFX, MG_BOOL(S.buffer_coherent_as_flush));
+    LOG_I("%s  bufferUploadMode           = %d  (0=padrão 1=persistente 2=staging)", PFX,
+          S.buffer_upload_mode);
+    LOG_I("%s  textureSwizzleMode         = %d  (0=off 1=BGRA→RGBA)", PFX,
+          S.texture_swizzle_mode);
+    LOG_I("%s  maxAnisotropyOverride      = %d  (0=sem override)", PFX,
+          S.max_anisotropy_override);
+
+    // ── 6. FSR — SHARPENING ───────────────────────────────────────────
+    MG_SEP();
+    LOG_I("%s[FSR — SHARPENING PÓS-PROCESSAMENTO]", PFX);
+    LOG_I("%s  fsrEnableSharpening        = %s  ← MASTER SWITCH", PFX,
+          MG_BOOL(S.fsr_enable_sharpening));
+    if (S.fsr_enable_sharpening) {
+        LOG_I("%s  fsr1Version                = %d  (1=5-tap/FSR1  2=3-tap/FSR2 mais rápido)", PFX,
+              S.fsr1_version);
+        if (S.fsr1_version == 1) {
+            LOG_I("%s  fsr1Sharpness  [ATIVO]     = %.2f  (0.0=passthrough 1.0=máximo nitidez)", PFX,
+                  S.fsr1_sharpness);
+            LOG_I("%s  fsr2Sharpness  [inativo]   = %.2f  (ignorado: version=1)", PFX, S.fsr2_sharpness);
+        } else {
+            LOG_I("%s  fsr1Sharpness  [inativo]   = %.2f  (ignorado: version=2)", PFX, S.fsr1_sharpness);
+            LOG_I("%s  fsr2Sharpness  [ATIVO]     = %.2f  (0.0=passthrough 1.0=máximo nitidez)", PFX,
+                  S.fsr2_sharpness);
+        }
+    } else {
+        LOG_I("%s  ⚠  FSR master=false — fsr1Version/Sharpness ignorados", PFX);
+    }
+    {
+        const char* preset = "Disabled (sem downscale)";
+        switch (S.fsr1_setting) {
+        case FSR1_Quality_Preset::UltraQuality: preset = "UltraQuality (1)"; break;
+        case FSR1_Quality_Preset::Quality:       preset = "Quality      (2)"; break;
+        case FSR1_Quality_Preset::Balanced:      preset = "Balanced     (3)"; break;
+        case FSR1_Quality_Preset::Performance:   preset = "Performance  (4)"; break;
+        default: break;
+        }
+        LOG_I("%s  fsr1Setting (downscale)    = %s", PFX, preset);
+    }
+
+    // ── 7. MULTIDRAW ENGINE — EXCLUSÃO MÚTUA ─────────────────────────
+    MG_SEP();
+    LOG_I("%s[MULTIDRAW ENGINE]  ← somente UM ativo; os outros são ignorados", PFX);
+    {
+        bool is_legacy = (S.multidraw_mode == MG_MultiDrawMode::LEGACY_MOBILEGLUES);
+        bool is_vmdi   = (S.multidraw_mode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED);
+        bool is_imdbi  = (S.multidraw_mode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED);
+
+        LOG_I("%s  multidrawEngine  (ATIVO)   = %s", PFX, mg_get_multidraw_engine_name());
+        LOG_I("%s  ┌─ Legacy  (Original MG)  = %s  — baseline, sem batching avançado",
+              PFX, is_legacy ? "[ATIVO ✓]" : "[inativo]");
+        LOG_I("%s  ├─ VMDI   (Virtual MDI)   = %s  — batching via indirect draw",
+              PFX, is_vmdi   ? "[ATIVO ✓]" : "[inativo]");
+        LOG_I("%s  └─ IMDBI  (Infinity MDI)  = %s  — batching via ring buffer (mais rápido)",
+              PFX, is_imdbi  ? "[ATIVO ✓]" : "[inativo]");
+
+        if (is_vmdi && is_imdbi)
+            LOG_I("%s  ⚠  CONFLITO detectado: VMDI e IMDBI marcados simultaneamente! "
+                  "Usando IMDBI.", PFX);
+    }
+
+    // ── 7a. SUBMODOS VMDI ─────────────────────────────────────────────
+    if (S.enable_vmdi) {
+        LOG_I("%s  [VMDI — submodos]", PFX);
+        LOG_I("%s    vmdiEnableAutotune       = %s", PFX, MG_BOOL(S.vmdi_enable_autotune));
+        if (S.vmdi_enable_autotune) {
+            LOG_I("%s    vmdiBackendTier          = AUTO  (autotuner escolhe; tier manual ignorado)",
+                  PFX);
+        } else {
+            const char* tier_name;
+            switch (S.vmdi_backend_tier) {
+            case  0: tier_name = "0 = native_mdi       (glMultiDrawIndirect nativo)";    break;
+            case  1: tier_name = "1 = multi_base_vertex(glMultiDrawElementsBaseVertex)"; break;
+            case  2: tier_name = "2 = indirect_unrolled(loop de glDrawIndirect)";        break;
+            case  3: tier_name = "3 = direct_fallback  (loop direto simples)";           break;
+            default: tier_name = "auto (valor inválido → autotuner)";                    break;
+            }
+            LOG_I("%s    vmdiBackendTier          = %s", PFX, tier_name);
+        }
+    } else {
+        LOG_I("%s  [VMDI — submodos]          → N/A (engine não é VMDI)", PFX);
+    }
+
+    // ── 7b. SUBMODOS IMDBI ────────────────────────────────────────────
+    if (S.enable_imdbi) {
+        LOG_I("%s  [IMDBI — submodos]", PFX);
+        const char* imdbi_mode_name;
+        switch (S.imdbi_backend_mode) {
+        case 0: imdbi_mode_name = "0 = stitching          (concatena draws num único buffer)"; break;
+        case 1: imdbi_mode_name = "1 = fast_indirect_ring (ring buffer persistente) [padrão]"; break;
+        case 2: imdbi_mode_name = "2 = unrolled_loop      (loop de indirect simples)";         break;
+        case 3: imdbi_mode_name = "3 = compute_dispatch   (compute shader gera os commands)";  break;
+        default: imdbi_mode_name = "? (desconhecido)"; break;
+        }
+        LOG_I("%s    imdbiBackend             = %s", PFX, imdbi_mode_name);
+        LOG_I("%s    imdbiUnrollFactor        = %d  (4 ou 8 sub-draws por indirect)", PFX,
+              S.imdbi_unroll_factor);
+        LOG_I("%s    imdbiPersistentMapping   = %s  (buffer mapeado permanentemente)", PFX,
+              MG_BOOL(S.imdbi_persistent_mapping));
+        LOG_I("%s    imdbiRegisterPinning     = %s  (fixa registros de GPU no buffer)", PFX,
+              MG_BOOL(S.imdbi_register_pinning));
+        LOG_I("%s    imdbiPrimitiveRestart    = %s", PFX, MG_BOOL(S.imdbi_primitive_restart));
+        LOG_I("%s    imdbiRingSize            = %d bytes (%d KB)", PFX,
+              S.imdbi_ring_size, S.imdbi_ring_size / 1024);
+    } else {
+        LOG_I("%s  [IMDBI — submodos]         → N/A (engine não é IMDBI)", PFX);
+    }
+
+    // ── 7c. ORDEM DOS BACKENDS POR ENTRY POINT ────────────────────────
+    LOG_I("%s  [Cadeia de fallback por entry point]", PFX);
+    for (int i = 0; i < MD_ENTRY_COUNT; ++i) {
+        std::string order_str;
+        for (int k = 0; k < S.multidraw_order_len[i]; ++k) {
+            if (!order_str.empty()) order_str += " > ";
+            order_str += md_backend_name(S.multidraw_order[i][k]);
+        }
+        LOG_I("%s    %-34s = %s", PFX, k_md_entries[i].order_key, order_str.c_str());
+    }
+
+    // ── 8. DIAGNÓSTICO ────────────────────────────────────────────────
+    MG_SEP();
+    LOG_I("%s[DIAGNÓSTICO (diag.*)]  ← master switch abaixo", PFX);
+    LOG_I("%s  diag.enabled               = %s", PFX, MG_BOOL(S.diag_enabled));
+    if (S.diag_enabled) {
+        LOG_I("%s  [overlay]", PFX);
+        LOG_I("%s    frameProfiler          = %s", PFX, MG_BOOL(S.diag_frame_profiler));
+        LOG_I("%s    drawCallCount          = %s", PFX, MG_BOOL(S.diag_draw_call_count));
+        LOG_I("%s    shaderRecompiles       = %s", PFX, MG_BOOL(S.diag_shader_recompiles));
+        LOG_I("%s    backendTier            = %s", PFX, MG_BOOL(S.diag_backend_tier));
+        LOG_I("%s    cpuGpuLoad             = %s", PFX, MG_BOOL(S.diag_cpu_gpu_load));
+        LOG_I("%s  [logging]", PFX);
+        LOG_I("%s    level                  = %s", PFX, S.diag_log_level.c_str());
+        LOG_I("%s    backendSelection       = %s", PFX, MG_BOOL(S.diag_log_backend_selection));
+        LOG_I("%s    shaderRecompiles       = %s", PFX, MG_BOOL(S.diag_log_shader_recompiles));
+        LOG_I("%s    drawCallCount          = %s", PFX, MG_BOOL(S.diag_log_draw_call_count));
+        LOG_I("%s    glTrace                = %s  ⚠ MUITO verboso se true", PFX,
+              MG_BOOL(S.diag_log_gl_trace));
+        LOG_I("%s  capabilityReport         = %s", PFX, MG_BOOL(S.diag_capability_report));
+        LOG_I("%s  [perfetto]", PFX);
+        LOG_I("%s    enabled                = %s", PFX, MG_BOOL(S.diag_perfetto_enabled));
+        LOG_I("%s    maxDurationSec         = %d", PFX, S.diag_perfetto_max_duration);
+    } else {
+        LOG_I("%s  ⚠  diag=false → overlay/logging/perfetto todos ignorados", PFX);
+    }
+
+    MG_SEP();
+    LOG_I("%s╔══════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s║    FIM — ENGINE INICIALIZADO COM SUCESSO         ║", PFX);
+    LOG_I("%s╚══════════════════════════════════════════════════╝", PFX);
+    LOG_I("%s", PFX);
+
+#undef MG_BOOL
+#undef MG_SEP
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 //  Schema v3 — aplica campos adicionais lidos pelo plugin.
@@ -989,4 +1223,8 @@ void mg_v3_apply_settings() {
         LOG_I("[MobileGlues] VMDI submode: tier=%d autotune=%d",
               tier, (int)global_settings.vmdi_enable_autotune);
     }
+
+    // Loga o estado final de TODAS as configurações numa única passagem.
+    // Deve ser a última instrução desta função, após tudo ter sido aplicado.
+    mg_log_all_settings_full();
 }
