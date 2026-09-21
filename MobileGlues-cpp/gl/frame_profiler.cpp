@@ -75,6 +75,13 @@ std::atomic<bool> g_session_active{false};
 std::atomic<float> g_fps_cur{0.0f};
 std::atomic<float> g_frame_ms_cur{0.0f};
 
+// GL strings cached at begin_session() while the context is guaranteed valid.
+// Calling glGetString() at atexit time crashes: mg_egl_test destroys the EGL
+// context and dlcloses the library before main() returns, so the driver
+// pointer behind GLES.glGetString is null.
+char g_cached_gpu_renderer[256] = {0};
+char g_cached_gpu_vendor[256]   = {0};
+
 std::mutex        g_lifecycle_mutex;
 uint64_t          g_session_id       = 0;
 uint64_t          g_session_start_ms = 0;
@@ -308,10 +315,8 @@ void write_session_files(int final) {
     cJSON_AddNumberToObject(root, "duration_ms", (double)dur_ms);
 
     cJSON* device = cJSON_CreateObject();
-    cJSON_AddStringToObject(device, "gpu_renderer",
-        glGetString ? (const char*)glGetString(GL_RENDERER) : "");
-    cJSON_AddStringToObject(device, "gpu_vendor",
-        glGetString ? (const char*)glGetString(GL_VENDOR) : "");
+    cJSON_AddStringToObject(device, "gpu_renderer", g_cached_gpu_renderer);
+    cJSON_AddStringToObject(device, "gpu_vendor",   g_cached_gpu_vendor);
     cJSON_AddNumberToObject(device, "es_major", 0);
     cJSON_AddNumberToObject(device, "es_minor", 0);
     cJSON_AddItemToObject(root, "device", device);
@@ -402,7 +407,10 @@ void mg_profiler_init(void) {
     g_session.frame_ms_min = DBL_MAX;
     g_tls = {};
     LOG_I("[PROFILER] initialized");
-    atexit(mg_profiler_end_session);
+    // No atexit: the library can be dlclose()d while atexit handlers are still
+    // registered, and calling them from unloaded memory is UB. A destructor
+    // runs when the library is unloaded AND at process exit if it stays
+    // loaded, which covers both paths safely.
 }
 
 void mg_profiler_begin_session(void) {
@@ -420,6 +428,14 @@ void mg_profiler_begin_session(void) {
         std::lock_guard<std::mutex> lk2(g_session_mutex);
         memset(&g_session, 0, sizeof(g_session));
         g_session.frame_ms_min = DBL_MAX;
+    }
+
+    // Capture GL strings now, while the caller's EGL context is still current.
+    if (GLES.glGetString) {
+        const char* r = (const char*)GLES.glGetString(GL_RENDERER);
+        const char* v = (const char*)GLES.glGetString(GL_VENDOR);
+        if (r) { strncpy(g_cached_gpu_renderer, r, sizeof(g_cached_gpu_renderer) - 1); g_cached_gpu_renderer[sizeof(g_cached_gpu_renderer) - 1] = '\0'; }
+        if (v) { strncpy(g_cached_gpu_vendor,   v, sizeof(g_cached_gpu_vendor) - 1);   g_cached_gpu_vendor[sizeof(g_cached_gpu_vendor) - 1]     = '\0'; }
     }
 
     read_prev_session();
@@ -535,3 +551,11 @@ float mg_profiler_delta_fps_max(void) {
 }
 
 } // extern "C"
+
+// Runs when the shared library is unloaded (dlclose) and, if it is still
+// loaded, at process exit. Idempotent: end_session() guards via exchange(false).
+__attribute__((destructor))
+static void mg_profiler_destructor(void) {
+    mg_profiler_end_session();
+}
+
