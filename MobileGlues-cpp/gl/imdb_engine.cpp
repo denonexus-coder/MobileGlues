@@ -44,6 +44,9 @@ bool IMDBI_Dispatcher::initialize() {
         try {
             m_ring_buffer.buffer = new uint8_t[m_ring_buffer.capacity];
         } catch (...) {
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
             return false;
         }
     }
@@ -116,9 +119,15 @@ bool IMDBI_Dispatcher::dispatch_multi_draw(
     GLsizei draw_count,
     GLsizei stride) {
     if (!m_initialized) {
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
         if (!initialize()) return false;
     }
     if (draw_count <= 0) return true;
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
     if (indirect_commands == nullptr) return false;
 
     auto t_start = std::chrono::high_resolution_clock::now();
@@ -151,6 +160,9 @@ bool IMDBI_Dispatcher::dispatch_multi_draw(
 
 bool IMDBI_Dispatcher::dispatch_stitched_draw(const IMDBI_DrawBatch& batch) {
     if (!m_initialized) {
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
         if (!initialize()) return false;
     }
     if (batch.empty()) return true;
@@ -197,6 +209,9 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
     GLsizei draw_count,
     GLsizei stride) {
     if (draw_count <= 0) return true;
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
     if (indirect_commands == nullptr) return false;
     
     if (m_glDrawElementsIndirect == nullptr) m_glDrawElementsIndirect = GLES.glDrawElementsIndirect;
@@ -217,6 +232,9 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
                 );
                 return true;
             }
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
             if (m_glDrawElementsIndirect == nullptr) return false;
             
             if (m_config.enable_register_pinning) {
@@ -257,6 +275,9 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
         case IMDBI_DrawType::DRAW_ARRAYS_INDIRECT:
         case IMDBI_DrawType::MULTI_DRAW_ARRAYS:
         case IMDBI_DrawType::MULTI_DRAW_ARRAYS_INDIRECT: {
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
             if (m_glDrawArraysIndirect == nullptr) return false;
             const uint8_t* cmd_ptr = static_cast<const uint8_t*>(indirect_commands);
             size_t actual_stride = stride > 0 ? stride : sizeof(IMDBI_DrawArraysIndirectCommand);
@@ -268,6 +289,9 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
         }
         
         default:
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
             return false;
     }
 }
@@ -281,6 +305,9 @@ bool IMDBI_Dispatcher::dispatch_fast_indirect_ring(
     GLsizei stride
 ) {
     if (draw_count <= 0) return true;
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
     if (indirect_commands == nullptr) return false;
     
     size_t actual_stride = stride > 0 ? stride : sizeof(IMDBI_DrawElementsIndirectCommand);
@@ -321,6 +348,9 @@ bool IMDBI_Dispatcher::dispatch_fast_indirect_ring(
                 );
                 return true;
             }
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
             if (m_glDrawElementsIndirect == nullptr) return false;
             
             size_t offset = reinterpret_cast<uintptr_t>(ring_memory) - reinterpret_cast<uintptr_t>(m_ring_buffer.buffer);

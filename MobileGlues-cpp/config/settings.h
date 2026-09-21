@@ -36,7 +36,7 @@ typedef unsigned long size_t;
 // These integers are never persisted: config.json carries the NAMES, so adding a
 // backend or an entry point can never repoint a value a user already wrote.
 enum class md_backend_t : int {
-    Auto = 0,        // "auto"            pick the best available for this entry point
+    None = 0,        // "auto"            pick the best available for this entry point
     Unroll,          // "unroll"          N x glDraw{Arrays,Elements}
     BaseVertex,      // "basevertex"      N x glDrawElementsBaseVertex
     Indirect,        // "indirect"        N x glDraw{Arrays,Elements}Indirect
@@ -80,10 +80,10 @@ enum class IgnoreErrorLevel : int {
 };
 
 enum class NoErrorConfig : int {
-    Auto = 0,
-    Disable = 1,
-    Level1 = 2,
-    Level2 = 3
+    None = 0,
+    Partial = 1,
+    Full = 2,
+    MaxValue = 3
 };
 
 enum class AngleDepthClearFixMode : int {
