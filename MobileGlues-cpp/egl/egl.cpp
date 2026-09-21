@@ -562,6 +562,13 @@ extern "C"
         ETRACE("eglTerminate(%p): last holder, terminating for real", dpy);
         const EGLBoolean result = egl_eglTerminate(dpy);
         if (result == EGL_TRUE) {
+            // Session flush happens here, not in the library destructor.
+            // The destructor runs after C++ static destructors, when the
+            // profiler's std::mutex objects are already destroyed — locking
+            // them is undefined behavior and silently aborted the write.
+            // eglTerminate is the normal shutdown path and runs while every
+            // object is still valid.
+            mg_profiler_end_session();
             mg_context_forget_display(dpy);
             // EGL's contract is that the extension string lives as long as the
             // display, so the cache entry outlives every caller's pointer -- but
