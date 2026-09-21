@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: LGPL-2.1-only
 
 #include "diag_report.h"
+#include "getter.h"
 #include "mg.h"
 #include "log.h"
 #include "mg_vmdi.h"
@@ -129,9 +130,17 @@ static long stat_mtime(const char* path) {
     return static_cast<long>(st.st_mtime);
 }
 
-static const char* safe_gl_string(GLenum name) {
+// Two views of the same string:
+//   safe_gl_string_driver  — raw driver value (bypasses camouflage)
+//   safe_gl_string_reported — the frontend wrapper from gl/getter.cpp,
+//                             which applies hideMGEnvLevel scrambling
+static const char* safe_gl_string_driver(GLenum name) {
     if (!GLES.glGetString) return "(no glGetString)";
     const GLubyte* s = GLES.glGetString(name);
+    return s ? reinterpret_cast<const char*>(s) : "(null)";
+}
+static const char* safe_gl_string_reported(GLenum name) {
+    const GLubyte* s = ::glGetString(name);
     return s ? reinterpret_cast<const char*>(s) : "(null)";
 }
 
@@ -191,7 +200,7 @@ static void section_close() {
 
 static void kv(const char* key, const char* fmt, ...) {
     char keybuf[32];
-    snprintf(keybuf, sizeof(keybuf), "%-24s", key);
+    snprintf(keybuf, sizeof(keybuf), "%-34s", key);
     char valbuf[512];
     va_list ap;
     va_start(ap, fmt);
@@ -202,7 +211,7 @@ static void kv(const char* key, const char* fmt, ...) {
 
 static void kv_bool(const char* key, bool active, const char* note = nullptr) {
     char keybuf[32];
-    snprintf(keybuf, sizeof(keybuf), "%-24s", key);
+    snprintf(keybuf, sizeof(keybuf), "%-34s", key);
     LOG_I("│  %s │ %s%s%s", keybuf,
           active ? "✅" : "❌",
           active ? " enabled" : " disabled",
@@ -327,10 +336,10 @@ extern "C" void mg_diag_emit_full_report(void) {
     using clock = std::chrono::steady_clock;
     const auto t_start = clock::now();
 
-    const char* real_renderer = safe_gl_string(GL_RENDERER);
-    const char* real_vendor   = safe_gl_string(GL_VENDOR);
-    const char* real_version  = safe_gl_string(GL_VERSION);
-    const char* real_glsl     = safe_gl_string(GL_SHADING_LANGUAGE_VERSION);
+    const char* real_renderer = safe_gl_string_driver(GL_RENDERER);
+    const char* real_vendor   = safe_gl_string_driver(GL_VENDOR);
+    const char* real_version  = safe_gl_string_driver(GL_VERSION);
+    const char* real_glsl     = safe_gl_string_driver(GL_SHADING_LANGUAGE_VERSION);
 
     LOG_I("");
     LOG_I("╔════════════════════════════════════════════════════════════════════════════════════════════╗");
@@ -460,15 +469,15 @@ extern "C" void mg_diag_emit_full_report(void) {
         };
 
         LOG_I("│  [1/9] OpenGL ES / EGL");
-        cross_int("opengl_egl.enableANGLE",  "enableANGLE",  (int)global_settings.angle_config);
-        cross_int("opengl_egl.hideMGEnvLevel","hideMGEnvLevel",(int)global_settings.hide_mg_env_level);
+        cross_int("opengl_egl.enableANGLE",  "enableANGLE",  (int)global_settings.angle_config, 3);
+        cross_int("opengl_egl.hideMGEnvLevel","hideMGEnvLevel",(int)global_settings.hide_mg_env_level, 1);
         cross_bool("gpuOptimization.enableExtGL43", "enableExtGL43", global_settings.enable_ext_gl43);
 
         LOG_I("│  [2/9] Error Handling");
-        cross_int("errorHandling.enableNoError","enableNoError",(int)global_settings.ignore_error);
+        cross_int("errorHandling.enableNoError","enableNoError",(int)global_settings.ignore_error, 2);
         cross_bool("errorHandling.forceGlGetErrorSkip","forceGlGetErrorSkip", global_settings.force_gl_get_error_skip);
         cross_bool("errorHandling.forceDepthPrecisionFix","forceDepthPrecisionFix", global_settings.force_depth_precision_fix);
-        cross_int("errorHandling.angleDepthClearFixMode","angleDepthClearFixMode",(int)global_settings.angle_depth_clear_fix_mode);
+        cross_int("errorHandling.angleDepthClearFixMode","angleDepthClearFixMode",(int)global_settings.angle_depth_clear_fix_mode, 2);
 
         LOG_I("│  [3/9] Shader Cache");
         {
@@ -553,10 +562,12 @@ extern "C" void mg_diag_emit_full_report(void) {
                                "glMultiDrawElementsBaseVertex",
                                "glMultiDrawArraysIndirect", "glMultiDrawElementsIndirect"};
         for (int i = 0; i < MD_ENTRY_COUNT; ++i) {
-            const char* b = (global_settings.multidraw_order_len[i] > 0)
-                ? md_backend_name(global_settings.multidraw_order[i][0])
-                : "(none)";
-            kv(names[i], "→ %s", b);
+            std::string chain;
+            for (int k = 0; k < global_settings.multidraw_order_len[i]; ++k) {
+                if (!chain.empty()) chain += " > ";
+                chain += md_backend_name(global_settings.multidraw_order[i][k]);
+            }
+            kv(names[i], "%s", chain.empty() ? "(none)" : chain.c_str());
         }
     }
     section_close();
@@ -653,10 +664,10 @@ extern "C" void mg_diag_emit_full_report(void) {
     // ── [8/10] REPORTED GL STRINGS ──
     section_header("🎨", 8, 10, "REPORTED GL STRINGS (what the app sees)");
     {
-        kv("GL_VENDOR", "%s", safe_gl_string(GL_VENDOR));
-        kv("GL_RENDERER", "%s", safe_gl_string(GL_RENDERER));
-        kv("GL_VERSION", "%s", safe_gl_string(GL_VERSION));
-        kv("GLSL", "%s", safe_gl_string(GL_SHADING_LANGUAGE_VERSION));
+        kv("GL_VENDOR (app sees)", "%s", safe_gl_string_reported(GL_VENDOR));
+        kv("GL_RENDERER (app sees)", "%s", safe_gl_string_reported(GL_RENDERER));
+        kv("GL_VERSION (app sees)", "%s", safe_gl_string_reported(GL_VERSION));
+        kv("GLSL (app sees)", "%s", safe_gl_string_reported(GL_SHADING_LANGUAGE_VERSION));
         kv("Camouflage mode", "%s",
            global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled
            ? "OFF (real strings shown)" : "ACTIVE (Level1)");
