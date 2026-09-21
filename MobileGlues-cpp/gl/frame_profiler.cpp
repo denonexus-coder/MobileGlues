@@ -70,7 +70,7 @@ std::mutex        g_ring_mutex;
 SessionRunning    g_session;
 std::mutex        g_session_mutex;
 
-std::atomic<bool> g_initialized{false};
+std::atomic<bool> g_profiler_initialized{false};
 std::atomic<bool> g_session_active{false};
 std::atomic<float> g_fps_cur{0.0f};
 std::atomic<float> g_frame_ms_cur{0.0f};
@@ -134,7 +134,7 @@ void record_frame(double frame_ms, double cpu_ms) {
 // ── Snapshot ────────────────────────────────────────────────────────────────
 void compute_snapshot(MG_FrameStats* out) {
     memset(out, 0, sizeof(*out));
-    if (!g_initialized.load()) return;
+    if (!g_profiler_initialized.load()) return;
 
     double fm_buf[kRecentRingSize];
     double cm_buf[kRecentRingSize];
@@ -396,7 +396,7 @@ void write_session_files(int final) {
 extern "C" {
 
 void mg_profiler_init(void) {
-    if (g_initialized.exchange(true)) return;
+    if (g_profiler_initialized.exchange(true)) return;
     memset(&g_ring, 0, sizeof(g_ring));
     memset(&g_session, 0, sizeof(g_session));
     g_session.frame_ms_min = DBL_MAX;
@@ -435,7 +435,7 @@ void mg_profiler_end_session(void) {
 }
 
 void mg_profiler_frame_mark(void) {
-    if (!g_initialized.load(std::memory_order_relaxed)) return;
+    if (!g_profiler_initialized.load(std::memory_order_relaxed)) return;
     uint64_t now = now_ns();
     TLS& t = g_tls;
     if (t.last_frame_ns != 0) {
@@ -457,7 +457,7 @@ void mg_profiler_frame_mark(void) {
 }
 
 void mg_profiler_cpu_begin(void) {
-    if (!g_initialized.load(std::memory_order_relaxed)) return;
+    if (!g_profiler_initialized.load(std::memory_order_relaxed)) return;
     TLS& t = g_tls;
     if (t.cpu_depth++ == 0) {
         t.cpu_begin_ns = now_ns();
@@ -465,7 +465,7 @@ void mg_profiler_cpu_begin(void) {
 }
 
 void mg_profiler_cpu_end(void) {
-    if (!g_initialized.load(std::memory_order_relaxed)) return;
+    if (!g_profiler_initialized.load(std::memory_order_relaxed)) return;
     TLS& t = g_tls;
     if (t.cpu_depth > 0 && --t.cpu_depth == 0) {
         uint64_t now = now_ns();
