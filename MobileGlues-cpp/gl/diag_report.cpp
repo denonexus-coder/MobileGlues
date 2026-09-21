@@ -160,15 +160,29 @@ static bool gpu_is_tbdr(const char* renderer) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 static void section_header(const char* icon, int idx, int total, const char* title) {
-    char buf[256];
-    snprintf(buf, sizeof(buf), "┌─ %s [SECTION %d/%d] %s", icon, idx, total, title);
-    int len = (int)strlen(buf);
-    int pad = 92 - len;
-    if (pad < 4) pad = 4;
-    for (int i = 0; i < pad; i++) buf[len + i] = '─';
-    buf[len + pad] = '\0';
+    // Box-drawing chars are 3-byte UTF-8 sequences, so padding cannot be done
+    // by writing a single char into a buffer. Build a std::string and count
+    // visible glyphs while appending.
+    char head[256];
+    snprintf(head, sizeof(head), "\u250c\u2500 %s [SECTION %d/%d] %s", icon, idx, total, title);
+    std::string line = head;
+
+    auto visible_len = [](const std::string& s) {
+        int n = 0;
+        for (size_t i = 0; i < s.size(); ) {
+            unsigned char c = (unsigned char)s[i];
+            if      (c < 0x80)           { n++; i += 1; }
+            else if ((c & 0xE0) == 0xC0) { n++; i += 2; }
+            else if ((c & 0xF0) == 0xE0) { n++; i += 3; }
+            else                          { n++; i += 4; }
+        }
+        return n;
+    };
+
+    while (visible_len(line) < 92) line += "\u2500";
+    line += "\u2510";
     LOG_I("");
-    LOG_I("%s┐", buf);
+    LOG_I("%s", line.c_str());
 }
 
 static void section_close() {
@@ -629,7 +643,6 @@ extern "C" void mg_diag_emit_full_report(void) {
         LOG_I("│  Deactivated (reasons):");
         if (global_settings.angle != AngleMode::Enabled) no("ANGLE translator", "native GL preferred");
         if (global_settings.multidraw_mode != MG_MultiDrawMode::MG_VMDI_OPTIMIZED) no("VMDI engine", "not selected");
-        if (global_settings.multidraw_mode != MG_MultiDrawMode::MG_LEGACY_MOBILEGLUES) {}
         if (global_settings.multidraw_mode != MG_MultiDrawMode::MG_IMDBI_OPTIMIZED) no("IMDBI engine", "not selected");
         if (!global_settings.ext_compute_shader) no("Compute shader emu", "weak GPU or config");
         if (global_settings.fsr1_version != 1) no("FSR v1 (5-tap)", "v2 selected");
