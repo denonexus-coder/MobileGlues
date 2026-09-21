@@ -10,6 +10,7 @@
 #include "../config/settings.h"
 #include "../gl/FSR1/FSR1.h"
 #include "../gl/log.h"
+#include "../gl/frame_profiler.h"
 #include "../gl/mg.h"
 #include "../gles/loader.h"
 #include "../glx/lookup.h"
@@ -411,6 +412,9 @@ namespace {
     // check reacts to a surface that has changed size. The three belong together,
     // and every path that presents a frame has to go through here.
     EGLBoolean presentSurface(EGLDisplay dpy, EGLSurface surface) {
+        // Frame boundary: one call per swap, regardless of FSR on/off.
+        // Measures time since the previous swap — i.e. one frame period.
+        mg_profiler_frame_mark();
         LOAD_EGL(eglSwapBuffers)
         if (global_settings.fsr1_setting == FSR1_Quality_Preset::Disabled) {
             return egl_eglSwapBuffers(dpy, surface);

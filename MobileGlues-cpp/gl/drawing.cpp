@@ -12,8 +12,22 @@
 #include "mg.h"
 #include "texture.h"
 #include "../egl/context.h"
+#include "frame_profiler.h"
 
 #define DEBUG 0
+
+namespace {
+// Brackets a CPU-heavy GL entry point so the frame profiler can report how
+// much of the frame budget the CPU actually spent inside GL calls. Depth
+// counter in the profiler handles nested calls (e.g. glDrawElements
+// internally dispatching into glDrawElementsBaseVertex).
+struct ProfilerCpuGuard {
+    ProfilerCpuGuard()  { mg_profiler_cpu_begin(); }
+    ~ProfilerCpuGuard() { mg_profiler_cpu_end(); }
+    ProfilerCpuGuard(const ProfilerCpuGuard&) = delete;
+    ProfilerCpuGuard& operator=(const ProfilerCpuGuard&) = delete;
+};
+} // namespace
 
 GLuint bufSampelerProg;
 GLuint bufSampelerLoc;
@@ -201,6 +215,7 @@ void prepareForDraw() {
 }
 
 void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void* indices, GLsizei primcount) {
+    ProfilerCpuGuard _cpu_guard;
     LOG()
     LOG_D("glDrawElementsInstanced, mode: %d, count: %d, type: %d, indices: %p, primcount: %d", mode, count, type,
           indices, primcount)
@@ -214,6 +229,7 @@ void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void
 }
 
 void glDrawElements(GLenum mode, GLsizei count, GLenum type, const void* indices) {
+    ProfilerCpuGuard _cpu_guard;
     LOG()
     LOG_D("glDrawElements, mode: %d, count: %d, type: %d, indices: %p", mode, count, type, indices)
     prepareForDraw();
@@ -298,6 +314,7 @@ void* basevertex_staging(size_t bytes) {
 } // namespace
 
 void glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const void* indices, GLint basevertex) {
+    ProfilerCpuGuard _cpu_guard;
     LOG()
     LOG_D("glDrawElementsBaseVertex, mode: %d, count: %d, type: %d, indices: %p, basevertex: %d", mode, count, type,
           indices, basevertex);

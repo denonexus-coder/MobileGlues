@@ -13,6 +13,7 @@
 #include "gl/gl.h"
 #include "gl/log.h"
 #include "gl/mg.h"
+#include "gl/frame_profiler.h"
 #include "gles/loader.h"
 #include "includes.h"
 #include <cerrno>
@@ -54,6 +55,7 @@ void init_perfetto() {
 #endif
 
 void proc_init() {
+    mg_profiler_init();
     init_config();
 
     clear_log();
@@ -71,6 +73,9 @@ void proc_init() {
 
     init_settings_post();
     mg_apply_all_settings_from_json();
+
+    // Start a profiler session once the runtime settings are known.
+    mg_profiler_begin_session();
 
 #if PROFILING
     init_perfetto();

@@ -102,6 +102,7 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
     gl/multidraw.cpp
     gl/mg_vmdi.cpp
     gl/diag_report.cpp
+    gl/frame_profiler.cpp
     gl/imdb_engine.cpp
     bench/multidraw_bench.cpp
     gl/mg.cpp
