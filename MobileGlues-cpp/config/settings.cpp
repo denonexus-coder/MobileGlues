@@ -18,6 +18,7 @@
 #include "../gl/mg_vmdi.h"
 #include "../gl/imdb_engine.h"
 #include "../gl/glsl/program_binary_cache.h"
+#include "../gl/diag_report.h"
 
 #define DEBUG 0
 
@@ -1221,4 +1222,8 @@ static void mg_log_all_settings_full() {
 // Wrapper — corpo real em mg_v3_apply_settings() (main.cpp:73)
 void mg_apply_all_settings_from_json() {
     mg_v3_apply_settings();
+
+    // ── Post-processing: conflict resolution + full diagnostic report ──
+    mg_diag_apply_conflict_rules();
+    mg_diag_emit_full_report();
 }
