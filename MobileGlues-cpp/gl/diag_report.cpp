@@ -199,7 +199,7 @@ static void section_close() {
 }
 
 static void kv(const char* key, const char* fmt, ...) {
-    char keybuf[32];
+    char keybuf[64];
     snprintf(keybuf, sizeof(keybuf), "%-34s", key);
     char valbuf[512];
     va_list ap;
@@ -210,7 +210,7 @@ static void kv(const char* key, const char* fmt, ...) {
 }
 
 static void kv_bool(const char* key, bool active, const char* note = nullptr) {
-    char keybuf[32];
+    char keybuf[64];
     snprintf(keybuf, sizeof(keybuf), "%-34s", key);
     LOG_I("│  %s │ %s%s%s", keybuf,
           active ? "✅" : "❌",
