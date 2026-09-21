@@ -103,7 +103,6 @@ namespace {
 static void parse_multidraw_orders();
 
 void init_settings() {
-#if defined(__APPLE__)
     global_settings.angle = AngleMode::Disabled;
     global_settings.angle_config = AngleConfig::DisableIfPossible;
     global_settings.angle_supported = false;
@@ -358,7 +357,6 @@ void init_settings() {
     global_settings.hide_mg_env_level = hideMGEnvLevel;
     // [REMOVED] orphan ref: // enableVMDI local var removed — enable_vmdi set via targetMdMode above
 // global_settings.enable_vmdi already set in init_settings_post();
-#endif
 
     LOG_V("[MobileGlues] Setting: enableAngle                 = %s",
           global_settings.angle == AngleMode::Enabled ? "true" : "false");
