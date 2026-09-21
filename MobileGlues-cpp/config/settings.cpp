@@ -131,7 +131,7 @@ void init_settings() {
     AngleConfig angleConfig =
         success ? static_cast<AngleConfig>(mg_cfg_int_compat("opengl_egl.enableANGLE", "enableANGLE")) : AngleConfig::DisableIfPossible;
     NoErrorConfig noErrorConfig =
-        success ? static_cast<NoErrorConfig>(mg_cfg_int_compat("errorHandling.enableNoError", "enableNoError")) : NoErrorConfig::Auto;
+        success ? static_cast<NoErrorConfig>(mg_cfg_int_compat("errorHandling.enableNoError", "enableNoError")) : NoErrorConfig::None;
     bool enableExtComputeShader = success ? (mg_cfg_int_compat("extensions.enableExtComputeShader", "enableExtComputeShader") > 0) : false;
     bool enableExtTimerQuery = success ? (mg_cfg_int_compat("extensions.enableExtTimerQuery", "enableExtTimerQuery") > 0) : false;
     bool enableExtDirectStateAccess = success ? (mg_cfg_int_compat("extensions.enableExtDirectStateAccess", "enableExtDirectStateAccess") > 0) : false;
@@ -234,7 +234,7 @@ void init_settings() {
         angleConfig = AngleConfig::DisableIfPossible;
     }
     if (static_cast<int>(noErrorConfig) < 0 || static_cast<int>(noErrorConfig) > 3) {
-        noErrorConfig = NoErrorConfig::Auto;
+        noErrorConfig = NoErrorConfig::None;
     }
     if (static_cast<int>(angleDepthClearFixMode) < 0 ||
         static_cast<int>(angleDepthClearFixMode) >= static_cast<int>(AngleDepthClearFixMode::MaxValue)) {
@@ -331,18 +331,17 @@ void init_settings() {
     }
 
     switch (noErrorConfig) {
-    case NoErrorConfig::Level1:
+    case NoErrorConfig::Partial:
         global_settings.ignore_error = IgnoreErrorLevel::Partial;
         LOG_D("Error ignoring: Level 1 (Partial)");
         break;
 
-    case NoErrorConfig::Level2:
+    case NoErrorConfig::Full:
         global_settings.ignore_error = IgnoreErrorLevel::Full;
         LOG_D("Error ignoring: Level 2 (Full)");
         break;
 
-    case NoErrorConfig::Auto:
-    case NoErrorConfig::Disable:
+    case NoErrorConfig::None:
     default:
         global_settings.ignore_error = IgnoreErrorLevel::None;
         LOG_D("Error ignoring: Disabled");
