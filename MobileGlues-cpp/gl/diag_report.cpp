@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: LGPL-2.1-only
 
 #include "diag_report.h"
+#include "mg.h"
 #include "log.h"
 #include "mg_vmdi.h"
 #include "mg_vmdi_config.h"
@@ -25,6 +26,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cstdarg>
 #include <string>
 #include <chrono>
 #include <sys/stat.h>
@@ -71,22 +73,6 @@ inline float mg_cfg_float_compat_d(const char* n, const char* f, float d = 0.0f)
 
 
 
-namespace {
-inline int mg_cfg_int_compat_d(const char* n, const char* f, int d = -1) {
-    int v = -1;
-    if (n) v = config_get_int_path(n);
-    if (v < 0 && f) v = config_get_int_path(f);
-    return v < 0 ? d : v;
-}
-inline float mg_cfg_float_compat_d(const char* n, const char* f, float d = 0.0f) {
-    float v = std::nanf("");
-    if (n) v = config_get_float_path(n);
-    if (std::isnan(v) && f) v = config_get_float_path(f);
-    return std::isnan(v) ? d : v;
-}
-}
-#define mg_cfg_int_compat mg_cfg_int_compat_d
-#define mg_cfg_float_compat mg_cfg_float_compat_d
 
 namespace {
 
@@ -172,16 +158,6 @@ static bool gpu_is_tbdr(const char* renderer) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Box-drawing primitives. Every line goes through LOG_I.
 // ─────────────────────────────────────────────────────────────────────────────
-
-static void hline(char l, char fill, char r, int width) {
-    char buf[256];
-    int n = 0;
-    buf[n++] = l;
-    for (int i = 0; i < width && n < 250; i++) buf[n++] = fill;
-    buf[n++] = r;
-    buf[n] = '\0';
-    LOG_I("%s", buf);
-}
 
 static void section_header(const char* icon, int idx, int total, const char* title) {
     char buf[256];
