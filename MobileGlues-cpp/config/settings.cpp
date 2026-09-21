@@ -7,6 +7,7 @@
 
 #include "settings.h"
 #include <cmath>
+#include <cstring>
 #include <strings.h>
 #include "config.h"
 #include "../gl/log.h"
@@ -132,7 +133,22 @@ void init_settings() {
     AngleDepthClearFixMode angleDepthClearFixMode =
         success ? static_cast<AngleDepthClearFixMode>(mg_cfg_int_compat("errorHandling.angleDepthClearFixMode", "angleDepthClearFixMode"))
                 : AngleDepthClearFixMode::Disabled;
-    int customGLVersionInt = success ? mg_cfg_int_compat("opengl_egl.customGLVersion", "customGLVersion", DEFAULT_GL_VERSION) : DEFAULT_GL_VERSION;
+    // customGLVersion in schema v3 is a string ("0", "4.0", "4.2", "4.6").
+    // It used to go through mg_cfg_int_compat(), whose cJSON path calls atoi()
+    // on a string -- "4.6" became 4, then the range check below turned 4 into 32,
+    // and the field reported 3.2.0 no matter what the config asked for. Try the
+    // string form first (Version's own "a.b.c" parser), fall back to the legacy
+    // int form only when the string is absent.
+    int customGLVersionInt = DEFAULT_GL_VERSION;
+    if (success) {
+        char* customGLVersionStr = mg_cfg_str_compat("opengl_egl.customGLVersion", "customGLVersion");
+        if (customGLVersionStr && customGLVersionStr[0] && strcmp(customGLVersionStr, "0") != 0) {
+            Version v(customGLVersionStr);
+            customGLVersionInt = v.Major * 10 + v.Minor;
+        } else {
+            customGLVersionInt = mg_cfg_int_compat("opengl_egl.customGLVersion", "customGLVersion", DEFAULT_GL_VERSION);
+        }
+    }
     FSR1_Quality_Preset fsr1Setting =
         success ? static_cast<FSR1_Quality_Preset>(mg_cfg_int_compat("upscaling.fsr1Setting", "fsr1Setting")) : FSR1_Quality_Preset::Disabled;
     HideMGEnvLevel hideMGEnvLevel =
