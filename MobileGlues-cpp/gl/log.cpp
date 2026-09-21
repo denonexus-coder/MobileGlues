@@ -16,7 +16,6 @@
 int __android_log_print(int prio, const char* tag, const char* fmt, ...) {
     return 0; // Do nothing
 }
-
 #endif
 
 #define CASE(e)                                                                                                        \
@@ -1101,7 +1100,6 @@ const char* glEnumToString(GLenum e) {
     }
 }
 
-
 #if LOG_CALLED_FUNCS
 
 #include "../config/config.h"
@@ -1129,9 +1127,4 @@ void log_unique_function(const char* func_name) {
 
     logged_functions.insert(func_str);
 }
-
-#endifvoid mg_log_set_schema_info(const std::string& version, const std::string& lastModified) {
-    g_schemaVersion = version;
-    g_lastModified = lastModified;
-    MG_LOG_INFO("Schema version: , Last modified: ", version.c_str(), lastModified.c_str());
-}
+#endif
