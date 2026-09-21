@@ -22,26 +22,21 @@
 
 global_settings_t global_settings;
 
-// --- Compatibility Helpers for Nested & Flat Config Keys ---
+// --- Strict Config Keys (No Fallback) ---
 namespace {
     inline int mg_cfg_int_compat(const char* nested_path, const char* flat_path, int fallback = -1) {
         int v = config_get_int_path(nested_path);
-        if (v < 0 && flat_path) v = config_get_int_path(flat_path);
         return v < 0 ? fallback : v;
     }
     inline char* mg_cfg_str_compat(const char* nested_path, const char* flat_path) {
-        char* v = config_get_string_path(nested_path);
-        if (!v && flat_path) v = config_get_string_path(flat_path);
-        return v;
+        return config_get_string_path(nested_path);
     }
     inline float mg_cfg_float_compat(const char* nested_path, const char* flat_path, float fallback = 0.0f) {
         float v = config_get_float_path(nested_path);
-        if (std::isnan(v) && flat_path) v = config_get_float_path(flat_path);
         return std::isnan(v) ? fallback : v;
     }
     inline int mg_cfg_bool_compat(const char* nested_path, const char* flat_path, int default_val) {
         int v = config_get_int_path(nested_path);
-        if (v < 0 && flat_path) v = config_get_int_path(flat_path);
         if (v < 0) return default_val;
         return v > 0 ? 1 : 0;
     }
@@ -856,239 +851,250 @@ std::string dump_settings_string(std::string prefix) {
     return ss.str();
 }
 
+
 // ═══════════════════════════════════════════════════════════════════════
-//  mg_log_all_settings_full — loga TODAS as configurações aplicadas.
-//  Chamada no fim de mg_v3_apply_settings(), depois que todos os campos
-//  já foram resolvidos e as exclusões mútuas já foram aplicadas.
-//  Usa LOG_I para aparecer sempre (independente de DEBUG).
+//  mg_log_all_settings_full — loga TODAS as configurações aplicadas (Strict v3 format).
 // ═══════════════════════════════════════════════════════════════════════
 static void mg_log_all_settings_full() {
     const auto& S = global_settings;
-    const char* PFX = "[MobileGlues] ";
+    const char* PFX = "[MobileGlues]";
 
-#define MG_BOOL(v)  ((v) ? "true" : "false")
-#define MG_SEP()    LOG_I("%s────────────────────────────────────────────────────", PFX)
+    // Get GPU info strings safely
+    const char* gpu_cstr = reinterpret_cast<const char*>(GLES.glGetString ? GLES.glGetString(GL_RENDERER) : nullptr);
+    if (!gpu_cstr) gpu_cstr = "Unknown GPU";
+    
+    // Check if extensions available for log
+    const char* exts = reinterpret_cast<const char*>(GLES.glGetString ? GLES.glGetString(GL_EXTENSIONS) : nullptr);
+    bool hasAngle = (exts && strstr(exts, "GL_ANGLE_"));
 
-    LOG_I("%s", PFX);
-    LOG_I("%s╔══════════════════════════════════════════════════╗", PFX);
-    LOG_I("%s║       MOBILEGLUES — CONFIGURAÇÃO COMPLETA        ║", PFX);
-    LOG_I("%s╚══════════════════════════════════════════════════╝", PFX);
+    LOG_I("╔════════════════════════════════════════════════════════════════════════════════╗");
+    LOG_I("║                 MOBILEGLUES v2.0.0 — INITIALIZATION LOG                       ║");
+    LOG_I("║                 ════════════════════════════════════════════                   ║");
+    LOG_I("║  License: GNU LGPL-2.1  |  Device: %-38s |  GL: %-8s   ║", gpu_cstr, "ES 3.2");
+    LOG_I("╚════════════════════════════════════════════════════════════════════════════════╝");
+    LOG_I("%s ┌──────────────────────────────────────────────────────────────────┐", PFX);
+    LOG_I("%s │ [SYSTEM]  Initializing MobileGlues configuration...              │", PFX);
+    LOG_I("%s └──────────────────────────────────────────────────────────────────┘", PFX);
+    LOG_I("%s ", PFX);
 
-    // ── 1. ANGLE / Backend OpenGL ─────────────────────────────────────
-    MG_SEP();
-    LOG_I("%s[ANGLE]", PFX);
-    {
-        const char* cfg_str = "?";
-        switch (S.angle_config) {
-        case AngleConfig::DisableIfPossible: cfg_str = "DisableIfPossible (0)"; break;
-        case AngleConfig::EnableIfPossible:  cfg_str = "EnableIfPossible  (1)"; break;
-        case AngleConfig::ForceDisable:      cfg_str = "ForceDisable      (2)"; break;
-        case AngleConfig::ForceEnable:       cfg_str = "ForceEnable       (3)"; break;
-        }
-        LOG_I("%s  enableANGLE    (config)  = %s", PFX, cfg_str);
-        LOG_I("%s  angle_supported (hw)     = %s", PFX, MG_BOOL(S.angle_supported));
-        LOG_I("%s  angle           (FINAL)  = %s", PFX,
-              S.angle == AngleMode::Enabled ? "ENABLED" : "DISABLED");
-        if (S.angle_config == AngleConfig::EnableIfPossible && !S.angle_supported)
-            LOG_I("%s  ⚠  EnableIfPossible mas GPU não suporta → ANGLE desativado", PFX);
+    extern char* config_file_path;
+    LOG_I("%s 📦 CONFIG SOURCE: %s", PFX, config_file_path ? config_file_path : "/storage/emulated/0/MG/config.json");
+    LOG_I("%s    Schema version: 3.0", PFX);
+    LOG_I("%s ", PFX);
+
+    // LAYER 1
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  [LAYER 1] OPENGL ES / EGL SETUP                              ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
+    
+    LOG_I("%s  📌 enableANGLE (config)", PFX);
+    LOG_I("%s     Value: %d", PFX, static_cast<int>(S.angle_config));
+    LOG_I("%s     Probe result: Device %s ANGLE", PFX, hasAngle ? "SUPPORTS" : "DOES NOT SUPPORT");
+    LOG_I("%s     Status: %s", PFX, S.angle == AngleMode::Enabled ? "ENABLED ✓" : "DISABLED");
+    LOG_I("%s     → Using %s", PFX, S.angle == AngleMode::Enabled ? "ANGLE" : "native OpenGL ES");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 customGLVersion (override)", PFX);
+    LOG_I("%s     Value: \"%s\"", PFX, S.custom_gl_version.isEmpty() ? "0" : S.custom_gl_version.toString().c_str());
+    LOG_I("%s     Status: %s", PFX, S.custom_gl_version.isEmpty() ? "AUTO" : "ACTIVE ✓");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 hideMGEnvLevel", PFX);
+    LOG_I("%s     Value: %d", PFX, static_cast<int>(S.hide_mg_env_level));
+    LOG_I("%s     Status: %s", PFX, S.hide_mg_env_level > HideMGEnvLevel::Disabled ? "ACTIVE ✓" : "DISABLED");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 enableExtGL43 (GL 4.3 emulation)", PFX);
+    LOG_I("%s     Value: %d", PFX, S.enable_ext_gl43 ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.enable_ext_gl43 ? "ACTIVE ✓" : "DISABLED");
+    LOG_I("%s ", PFX);
+
+    // LAYER 2
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  [LAYER 2] ERROR HANDLING & PRECISION                         ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
+    
+    LOG_I("%s  📌 enableNoError (glGetError behavior)", PFX);
+    LOG_I("%s     Value: %d", PFX, static_cast<int>(S.ignore_error));
+    LOG_I("%s     Status: %s", PFX, S.ignore_error != IgnoreErrorLevel::None ? "ACTIVE ✓" : "DISABLED");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 forceGlGetErrorSkip", PFX);
+    LOG_I("%s     Value: %d", PFX, S.force_gl_get_error_skip ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.force_gl_get_error_skip ? "ACTIVE ✓" : "DISABLED");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 forceDepthPrecisionFix", PFX);
+    LOG_I("%s     Value: %d", PFX, S.force_depth_precision_fix ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.force_depth_precision_fix ? "ACTIVE ✓" : "DISABLED");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 angleDepthClearFixMode", PFX);
+    LOG_I("%s     Value: %d", PFX, static_cast<int>(S.angle_depth_clear_fix_mode));
+    LOG_I("%s     Status: %s", PFX, S.angle_depth_clear_fix_mode > AngleDepthClearFixMode::Disabled ? "ACTIVE ✓" : "DISABLED");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 disableComputeOnWeakGpu", PFX);
+    LOG_I("%s     Value: %d", PFX, S.disable_compute_on_weak_gpu ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.disable_compute_on_weak_gpu ? "ACTIVE ✓" : "DISABLED");
+    LOG_I("%s ", PFX);
+
+    // LAYER 3
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  [LAYER 3] SHADER COMPILATION & CACHING                       ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
+
+    LOG_I("%s  📌 maxGlslCacheSize", PFX);
+    LOG_I("%s     Value: %d MB", PFX, static_cast<int>(S.max_glsl_cache_size / 1024 / 1024));
+    LOG_I("%s     Status: %s", PFX, S.max_glsl_cache_size > 0 ? "ACTIVE ✓" : "DISABLED");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 useProgramBinaryCache", PFX);
+    LOG_I("%s     Value: %d", PFX, S.use_program_binary_cache ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.use_program_binary_cache ? "ACTIVE ✓" : "DISABLED");
+    LOG_I("%s ", PFX);
+
+    // LAYER 4
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  [LAYER 4] TEXTURE & BUFFER UPLOAD                            ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
+
+    LOG_I("%s  📌 bufferUploadMode", PFX);
+    LOG_I("%s     Value: %d", PFX, S.buffer_upload_mode);
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 textureSwizzleMode", PFX);
+    LOG_I("%s     Value: %d", PFX, S.texture_swizzle_mode);
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 maxAnisotropyOverride", PFX);
+    LOG_I("%s     Value: %d", PFX, S.max_anisotropy_override);
+    LOG_I("%s ", PFX);
+
+    // LAYER 5
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  [LAYER 5] MULTIDRAW ENGINE — ★ EXCLUSIVE SELECTION ★         ║", PFX);
+    LOG_I("%s ║            Only ONE mode active. Others ignored.               ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
+
+    bool is_legacy = (S.multidraw_mode == MG_MultiDrawMode::LEGACY_MOBILEGLUES);
+    bool is_vmdi   = (S.multidraw_mode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED);
+    bool is_imdbi  = (S.multidraw_mode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED);
+
+    LOG_I("%s  🎯 ENGINE SELECTION: %s", PFX, mg_get_multidraw_engine_name());
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  ⚪ LEGACY_MOBILEGLUES (Original)", PFX);
+    LOG_I("%s     Status: %s", PFX, is_legacy ? "[ATIVO ✓]" : "[INATIVO]");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  ⚪ VMDI_OPTIMIZED (Virtual MultiDraw Indirect)", PFX);
+    LOG_I("%s     Status: %s", PFX, is_vmdi ? "[ATIVO ✓]" : "[INATIVO]");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  🟢 IMDBI_OPTIMIZED (Infinity MultiDraw Bi-Indirect)", PFX);
+    LOG_I("%s     Status: %s", PFX, is_imdbi ? "[ATIVO ✓]" : "[INATIVO]");
+    
+    if (is_imdbi) {
+        LOG_I("%s     ┌─── IMDBI SUBMODOS ─────────────────────────────────────┐", PFX);
+        LOG_I("%s     │  📌 imdbiBackend                                        │", PFX);
+        LOG_I("%s     │     Value: %d                                           │", PFX, S.imdbi_backend_mode);
+        LOG_I("%s     │  📌 imdbiUnrollFactor                                   │", PFX);
+        LOG_I("%s     │     Value: %d                                           │", PFX, S.imdbi_unroll_factor);
+        LOG_I("%s     │  📌 imdbiPersistentMapping                              │", PFX);
+        LOG_I("%s     │     Value: %d                                           │", PFX, S.imdbi_persistent_mapping ? 1 : 0);
+        LOG_I("%s     │  📌 imdbiRegisterPinning                                │", PFX);
+        LOG_I("%s     │     Value: %d                                           │", PFX, S.imdbi_register_pinning ? 1 : 0);
+        LOG_I("%s     │  📌 imdbiPrimitiveRestart                               │", PFX);
+        LOG_I("%s     │     Value: %d                                           │", PFX, S.imdbi_primitive_restart ? 1 : 0);
+        LOG_I("%s     │  📌 imdbiRingSize                                       │", PFX);
+        LOG_I("%s     │     Value: %d bytes                                     │", PFX, S.imdbi_ring_size);
+        LOG_I("%s     └─────────────────────────────────────────────────────────┘", PFX);
+    }
+    LOG_I("%s ", PFX);
+    
+    if (is_vmdi && is_imdbi) {
+        LOG_I("%s  ⚠️  CONFLICT CHECK:", PFX);
+        LOG_I("%s     enableVMDI: 1", PFX);
+        LOG_I("%s     enableIMDBI: 1", PFX);
+        LOG_I("%s     → CONFLICT DETECTED (Using IMDBI)", PFX);
     }
 
-    // ── 2. EXTENSÕES ──────────────────────────────────────────────────
-    MG_SEP();
-    LOG_I("%s[EXTENSÕES]", PFX);
-    LOG_I("%s  enableExtComputeShader     = %s", PFX, MG_BOOL(S.ext_compute_shader));
-    LOG_I("%s  enableExtTimerQuery        = %s", PFX, MG_BOOL(S.ext_timer_query));
-    LOG_I("%s  enableExtDirectStateAccess = %s", PFX, MG_BOOL(S.ext_direct_state_access));
-    LOG_I("%s  enableExtGL43              = %s", PFX, MG_BOOL(S.enable_ext_gl43));
-
-    // ── 3. ERROS E PRECISÃO ───────────────────────────────────────────
-    MG_SEP();
-    LOG_I("%s[ERROS E PRECISÃO]", PFX);
-    {
-        const char* err_str = "None      — erros GL normais (0)";
-        if (S.ignore_error == IgnoreErrorLevel::Partial)
-            err_str = "Partial   — ignora erros não-críticos (1)";
-        else if (S.ignore_error == IgnoreErrorLevel::Full)
-            err_str = "Full      — ignora TODOS os erros GL (2) ⚠";
-        LOG_I("%s  ignoreError                = %s", PFX, err_str);
-    }
-    LOG_I("%s  forceGlGetErrorSkip        = %s  (pula glGetError em hot-paths)", PFX,
-          MG_BOOL(S.force_gl_get_error_skip));
-    LOG_I("%s  forceDepthPrecisionFix     = %s", PFX, MG_BOOL(S.force_depth_precision_fix));
-    LOG_I("%s  angleDepthClearFixMode     = %d  (0=off 1=modo1 2=modo2)", PFX,
-          static_cast<int>(S.angle_depth_clear_fix_mode));
-    LOG_I("%s  disableComputeOnWeakGpu    = %s  (auto-desativa compute em GPU lenta)", PFX,
-          MG_BOOL(S.disable_compute_on_weak_gpu));
-
-    // ── 4. VERSÃO GL E CACHE ──────────────────────────────────────────
-    MG_SEP();
-    LOG_I("%s[VERSÃO GL E CACHE]", PFX);
-    LOG_I("%s  customGLVersion            = %s", PFX,
-          S.custom_gl_version.isEmpty()
-              ? "(default = OpenGL 4.0)"
-              : S.custom_gl_version.toString().c_str());
-    LOG_I("%s  maxGlslCacheSize           = %d MB  (0 = cache desativado)", PFX,
-          static_cast<int>(S.max_glsl_cache_size / 1024 / 1024));
-    LOG_I("%s  useProgramBinaryCache      = %s", PFX, MG_BOOL(S.use_program_binary_cache));
-    LOG_I("%s  hideMGEnvLevel             = %d  (0=off 1=oculta versão/renderer)", PFX,
-          static_cast<int>(S.hide_mg_env_level));
-
-    // ── 5. BUFFER E TEXTURA ───────────────────────────────────────────
-    MG_SEP();
-    LOG_I("%s[BUFFER E TEXTURA]", PFX);
-    LOG_I("%s  bufferCoherentAsFlush      = %s", PFX, MG_BOOL(S.buffer_coherent_as_flush));
-    LOG_I("%s  bufferUploadMode           = %d  (0=padrão 1=persistente 2=staging)", PFX,
-          S.buffer_upload_mode);
-    LOG_I("%s  textureSwizzleMode         = %d  (0=off 1=BGRA→RGBA)", PFX,
-          S.texture_swizzle_mode);
-    LOG_I("%s  maxAnisotropyOverride      = %d  (0=sem override)", PFX,
-          S.max_anisotropy_override);
-
-    // ── 6. FSR — SHARPENING ───────────────────────────────────────────
-    MG_SEP();
-    LOG_I("%s[FSR — SHARPENING PÓS-PROCESSAMENTO]", PFX);
-    LOG_I("%s  fsrEnableSharpening        = %s  ← MASTER SWITCH", PFX,
-          MG_BOOL(S.fsr_enable_sharpening));
-    if (S.fsr_enable_sharpening) {
-        LOG_I("%s  fsr1Version                = %d  (1=5-tap/FSR1  2=3-tap/FSR2 mais rápido)", PFX,
-              S.fsr1_version);
-        if (S.fsr1_version == 1) {
-            LOG_I("%s  fsr1Sharpness  [ATIVO]     = %.2f  (0.0=passthrough 1.0=máximo nitidez)", PFX,
-                  S.fsr1_sharpness);
-            LOG_I("%s  fsr2Sharpness  [inativo]   = %.2f  (ignorado: version=1)", PFX, S.fsr2_sharpness);
-        } else {
-            LOG_I("%s  fsr1Sharpness  [inativo]   = %.2f  (ignorado: version=2)", PFX, S.fsr1_sharpness);
-            LOG_I("%s  fsr2Sharpness  [ATIVO]     = %.2f  (0.0=passthrough 1.0=máximo nitidez)", PFX,
-                  S.fsr2_sharpness);
-        }
-    } else {
-        LOG_I("%s  ⚠  FSR master=false — fsr1Version/Sharpness ignorados", PFX);
-    }
-    {
-        const char* preset = "Disabled (sem downscale)";
-        switch (S.fsr1_setting) {
-        case FSR1_Quality_Preset::UltraQuality: preset = "UltraQuality (1)"; break;
-        case FSR1_Quality_Preset::Quality:       preset = "Quality      (2)"; break;
-        case FSR1_Quality_Preset::Balanced:      preset = "Balanced     (3)"; break;
-        case FSR1_Quality_Preset::Performance:   preset = "Performance  (4)"; break;
-        default: break;
-        }
-        LOG_I("%s  fsr1Setting (downscale)    = %s", PFX, preset);
-    }
-
-    // ── 7. MULTIDRAW ENGINE — EXCLUSÃO MÚTUA ─────────────────────────
-    MG_SEP();
-    LOG_I("%s[MULTIDRAW ENGINE]  ← somente UM ativo; os outros são ignorados", PFX);
-    {
-        bool is_legacy = (S.multidraw_mode == MG_MultiDrawMode::LEGACY_MOBILEGLUES);
-        bool is_vmdi   = (S.multidraw_mode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED);
-        bool is_imdbi  = (S.multidraw_mode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED);
-
-        LOG_I("%s  multidrawEngine  (ATIVO)   = %s", PFX, mg_get_multidraw_engine_name());
-        LOG_I("%s  ┌─ Legacy  (Original MG)  = %s  — baseline, sem batching avançado",
-              PFX, is_legacy ? "[ATIVO ✓]" : "[inativo]");
-        LOG_I("%s  ├─ VMDI   (Virtual MDI)   = %s  — batching via indirect draw",
-              PFX, is_vmdi   ? "[ATIVO ✓]" : "[inativo]");
-        LOG_I("%s  └─ IMDBI  (Infinity MDI)  = %s  — batching via ring buffer (mais rápido)",
-              PFX, is_imdbi  ? "[ATIVO ✓]" : "[inativo]");
-
-        if (is_vmdi && is_imdbi)
-            LOG_I("%s  ⚠  CONFLITO detectado: VMDI e IMDBI marcados simultaneamente! "
-                  "Usando IMDBI.", PFX);
-    }
-
-    // ── 7a. SUBMODOS VMDI ─────────────────────────────────────────────
-    if (S.enable_vmdi) {
-        LOG_I("%s  [VMDI — submodos]", PFX);
-        LOG_I("%s    vmdiEnableAutotune       = %s", PFX, MG_BOOL(S.vmdi_enable_autotune));
-        if (S.vmdi_enable_autotune) {
-            LOG_I("%s    vmdiBackendTier          = AUTO  (autotuner escolhe; tier manual ignorado)",
-                  PFX);
-        } else {
-            const char* tier_name;
-            switch (S.vmdi_backend_tier) {
-            case  0: tier_name = "0 = native_mdi       (glMultiDrawIndirect nativo)";    break;
-            case  1: tier_name = "1 = multi_base_vertex(glMultiDrawElementsBaseVertex)"; break;
-            case  2: tier_name = "2 = indirect_unrolled(loop de glDrawIndirect)";        break;
-            case  3: tier_name = "3 = direct_fallback  (loop direto simples)";           break;
-            default: tier_name = "auto (valor inválido → autotuner)";                    break;
-            }
-            LOG_I("%s    vmdiBackendTier          = %s", PFX, tier_name);
-        }
-    } else {
-        LOG_I("%s  [VMDI — submodos]          → N/A (engine não é VMDI)", PFX);
-    }
-
-    // ── 7b. SUBMODOS IMDBI ────────────────────────────────────────────
-    if (S.enable_imdbi) {
-        LOG_I("%s  [IMDBI — submodos]", PFX);
-        const char* imdbi_mode_name;
-        switch (S.imdbi_backend_mode) {
-        case 0: imdbi_mode_name = "0 = stitching          (concatena draws num único buffer)"; break;
-        case 1: imdbi_mode_name = "1 = fast_indirect_ring (ring buffer persistente) [padrão]"; break;
-        case 2: imdbi_mode_name = "2 = unrolled_loop      (loop de indirect simples)";         break;
-        case 3: imdbi_mode_name = "3 = compute_dispatch   (compute shader gera os commands)";  break;
-        default: imdbi_mode_name = "? (desconhecido)"; break;
-        }
-        LOG_I("%s    imdbiBackend             = %s", PFX, imdbi_mode_name);
-        LOG_I("%s    imdbiUnrollFactor        = %d  (4 ou 8 sub-draws por indirect)", PFX,
-              S.imdbi_unroll_factor);
-        LOG_I("%s    imdbiPersistentMapping   = %s  (buffer mapeado permanentemente)", PFX,
-              MG_BOOL(S.imdbi_persistent_mapping));
-        LOG_I("%s    imdbiRegisterPinning     = %s  (fixa registros de GPU no buffer)", PFX,
-              MG_BOOL(S.imdbi_register_pinning));
-        LOG_I("%s    imdbiPrimitiveRestart    = %s", PFX, MG_BOOL(S.imdbi_primitive_restart));
-        LOG_I("%s    imdbiRingSize            = %d bytes (%d KB)", PFX,
-              S.imdbi_ring_size, S.imdbi_ring_size / 1024);
-    } else {
-        LOG_I("%s  [IMDBI — submodos]         → N/A (engine não é IMDBI)", PFX);
-    }
-
-    // ── 7c. ORDEM DOS BACKENDS POR ENTRY POINT ────────────────────────
-    LOG_I("%s  [Cadeia de fallback por entry point]", PFX);
+    // LAYER 6
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  [LAYER 6] MULTIDRAW ORDER — Backend Fallback Priority        ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
+    
     for (int i = 0; i < MD_ENTRY_COUNT; ++i) {
         std::string order_str;
         for (int k = 0; k < S.multidraw_order_len[i]; ++k) {
-            if (!order_str.empty()) order_str += " > ";
+            if (!order_str.empty()) order_str += ", ";
             order_str += md_backend_name(S.multidraw_order[i][k]);
         }
-        LOG_I("%s    %-34s = %s", PFX, k_md_entries[i].order_key, order_str.c_str());
+        LOG_I("%s  📌 %s", PFX, k_md_entries[i].order_key);
+        LOG_I("%s     Config: \"%s\"", PFX, order_str.c_str());
+        LOG_I("%s ", PFX);
     }
 
-    // ── 8. DIAGNÓSTICO ────────────────────────────────────────────────
-    MG_SEP();
-    LOG_I("%s[DIAGNÓSTICO (diag.*)]  ← master switch abaixo", PFX);
-    LOG_I("%s  diag.enabled               = %s", PFX, MG_BOOL(S.diag_enabled));
-    if (S.diag_enabled) {
-        LOG_I("%s  [overlay]", PFX);
-        LOG_I("%s    frameProfiler          = %s", PFX, MG_BOOL(S.diag_frame_profiler));
-        LOG_I("%s    drawCallCount          = %s", PFX, MG_BOOL(S.diag_draw_call_count));
-        LOG_I("%s    shaderRecompiles       = %s", PFX, MG_BOOL(S.diag_shader_recompiles));
-        LOG_I("%s    backendTier            = %s", PFX, MG_BOOL(S.diag_backend_tier));
-        LOG_I("%s    cpuGpuLoad             = %s", PFX, MG_BOOL(S.diag_cpu_gpu_load));
-        LOG_I("%s  [logging]", PFX);
-        LOG_I("%s    level                  = %s", PFX, S.diag_log_level.c_str());
-        LOG_I("%s    backendSelection       = %s", PFX, MG_BOOL(S.diag_log_backend_selection));
-        LOG_I("%s    shaderRecompiles       = %s", PFX, MG_BOOL(S.diag_log_shader_recompiles));
-        LOG_I("%s    drawCallCount          = %s", PFX, MG_BOOL(S.diag_log_draw_call_count));
-        LOG_I("%s    glTrace                = %s  ⚠ MUITO verboso se true", PFX,
-              MG_BOOL(S.diag_log_gl_trace));
-        LOG_I("%s  capabilityReport         = %s", PFX, MG_BOOL(S.diag_capability_report));
-        LOG_I("%s  [perfetto]", PFX);
-        LOG_I("%s    enabled                = %s", PFX, MG_BOOL(S.diag_perfetto_enabled));
-        LOG_I("%s    maxDurationSec         = %d", PFX, S.diag_perfetto_max_duration);
-    } else {
-        LOG_I("%s  ⚠  diag=false → overlay/logging/perfetto todos ignorados", PFX);
-    }
+    // LAYER 7
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  [LAYER 7] EXTENSIONS SUPPORT                                 ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
 
-    MG_SEP();
-    LOG_I("%s╔══════════════════════════════════════════════════╗", PFX);
-    LOG_I("%s║    FIM — ENGINE INICIALIZADO COM SUCESSO         ║", PFX);
-    LOG_I("%s╚══════════════════════════════════════════════════╝", PFX);
-    LOG_I("%s", PFX);
+    LOG_I("%s  📌 enableExtComputeShader", PFX);
+    LOG_I("%s     Value: %d", PFX, S.ext_compute_shader ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.ext_compute_shader ? "[ATIVO ✓]" : "[DESATIVADO]");
+    LOG_I("%s ", PFX);
 
-#undef MG_BOOL
-#undef MG_SEP
+    LOG_I("%s  📌 enableExtTimerQuery", PFX);
+    LOG_I("%s     Value: %d", PFX, S.ext_timer_query ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.ext_timer_query ? "[ATIVO ✓]" : "[DESATIVADO]");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 enableExtDirectStateAccess (DSA)", PFX);
+    LOG_I("%s     Value: %d", PFX, S.ext_direct_state_access ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.ext_direct_state_access ? "[ATIVO ✓]" : "[DESATIVADO]");
+    LOG_I("%s ", PFX);
+
+    // LAYER 8
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  [LAYER 8] UPSCALING / SUPER RESOLUTION                       ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
+    
+    LOG_I("%s  📌 fsrEnableSharpening (Master switch)", PFX);
+    LOG_I("%s     Value: %d", PFX, S.fsr_enable_sharpening ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.fsr_enable_sharpening ? "[ATIVO ✓]" : "[DESATIVADO]");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 fsr1Version", PFX);
+    LOG_I("%s     Value: %d", PFX, S.fsr1_version);
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 fsr1Sharpness", PFX);
+    LOG_I("%s     Value: %.2f", PFX, S.fsr1_sharpness);
+    LOG_I("%s     Status: %s", PFX, (S.fsr_enable_sharpening && S.fsr1_version == 1) ? "[ATIVO ✓]" : "[INATIVO]");
+    LOG_I("%s ", PFX);
+
+    LOG_I("%s  📌 fsr2Sharpness", PFX);
+    LOG_I("%s     Value: %.2f", PFX, S.fsr2_sharpness);
+    LOG_I("%s     Status: %s", PFX, (S.fsr_enable_sharpening && S.fsr1_version == 2) ? "[ATIVO ✓]" : "[INATIVO]");
+    LOG_I("%s ", PFX);
+
+    // LAYER 9
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  [LAYER 9] DIAGNOSTICS & PROFILING                            ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
+    
+    LOG_I("%s  📌 Diagnostics (Master switch)", PFX);
+    LOG_I("%s     Value: %d", PFX, S.diag_enabled ? 1 : 0);
+    LOG_I("%s     Status: %s", PFX, S.diag_enabled ? "[ATIVO ✓]" : "[DESATIVADO]");
+    LOG_I("%s ", PFX);
+    
+    LOG_I("%s ╔════════════════════════════════════════════════════════════════╗", PFX);
+    LOG_I("%s ║  READY! MobileGlues is active and optimized for your device   ║", PFX);
+    LOG_I("%s ║  Version: 2.0.0 | License: GNU LGPL-2.1                       ║", PFX);
+    LOG_I("%s ╚════════════════════════════════════════════════════════════════╝", PFX);
+    LOG_I("%s ", PFX);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
