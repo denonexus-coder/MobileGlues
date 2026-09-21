@@ -1130,4 +1130,8 @@ void log_unique_function(const char* func_name) {
     logged_functions.insert(func_str);
 }
 
-#endif
+#endifvoid mg_log_set_schema_info(const std::string& version, const std::string& lastModified) {
+    g_schemaVersion = version;
+    g_lastModified = lastModified;
+    MG_LOG_INFO("Schema version: , Last modified: ", version.c_str(), lastModified.c_str());
+}

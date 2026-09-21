@@ -50,6 +50,9 @@ bool IMDBI_Dispatcher::initialize() {
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
             return false;
         }
     }
@@ -128,9 +131,15 @@ bool IMDBI_Dispatcher::dispatch_multi_draw(
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
         if (!initialize()) return false;
     }
     if (draw_count <= 0) return true;
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
@@ -169,6 +178,9 @@ bool IMDBI_Dispatcher::dispatch_multi_draw(
 
 bool IMDBI_Dispatcher::dispatch_stitched_draw(const IMDBI_DrawBatch& batch) {
     if (!m_initialized) {
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
@@ -227,6 +239,9 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
     if (indirect_commands == nullptr) return false;
     
     if (m_glDrawElementsIndirect == nullptr) m_glDrawElementsIndirect = GLES.glDrawElementsIndirect;
@@ -247,6 +262,9 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
                 );
                 return true;
             }
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
@@ -299,6 +317,9 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
             if (m_glDrawArraysIndirect == nullptr) return false;
             const uint8_t* cmd_ptr = static_cast<const uint8_t*>(indirect_commands);
             size_t actual_stride = stride > 0 ? stride : sizeof(IMDBI_DrawArraysIndirectCommand);
@@ -310,6 +331,9 @@ bool IMDBI_Dispatcher::dispatch_unrolled_loop(
         }
         
         default:
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
@@ -329,6 +353,9 @@ bool IMDBI_Dispatcher::dispatch_fast_indirect_ring(
     GLsizei stride
 ) {
     if (draw_count <= 0) return true;
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
@@ -375,6 +402,9 @@ bool IMDBI_Dispatcher::dispatch_fast_indirect_ring(
                 );
                 return true;
             }
+        apply_config();
+        m_initialized = true;
+        MG_LOG_INFO("IMDBI dispatcher initialized successfully");
         apply_config();
         m_initialized = true;
         MG_LOG_INFO("IMDBI dispatcher initialized successfully");
@@ -455,3 +485,11 @@ void IMDBI_Dispatcher::update_state_cache(
     g_imdbi_state_cache.tf_active = tf_active;
     g_imdbi_state_cache.tf_paused = tf_paused;
 }
+    void apply_config() override {
+        m_usePersistentMapping = g_config.imdbi_persistent_mapping;
+        m_useRegisterPinning = g_config.imdbi_register_pinning;
+        m_ringSize = g_config.imdbi_ring_size;
+        m_usePrimitiveRestart = g_config.imdbi_primitive_restart;
+        m_useComputeDispatch = g_config.imdbi_compute_dispatch;
+        m_unrollFactor = g_config.imdbi_unroll_factor;
+    }
