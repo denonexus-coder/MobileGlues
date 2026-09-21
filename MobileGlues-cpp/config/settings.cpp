@@ -431,7 +431,7 @@ struct md_backend_name_t {
 };
 
 const md_backend_name_t k_md_backend_names[] = {
-    {"auto", B::Auto},           {"unroll", B::Unroll},   {"basevertex", B::BaseVertex},
+    {"auto", B::None},           {"unroll", B::Unroll},   {"basevertex", B::BaseVertex},
     {"indirect", B::Indirect},   {"multiindirect", B::MultiIndirect}, {"multibasevertex", B::MultiBaseVertex},
     {"multiarrays", B::MultiArrays}, {"compute", B::Compute},
 };
@@ -610,14 +610,14 @@ static int md_parse_order_list(const char* key, const std::string& raw, bool all
         if (n >= out_max) break;
         if (s == "native") {
             if (allow_native) {
-                out[n++] = {true, B::Auto};
+                out[n++] = {true, B::None};
             } else {
                 LOG_W_FORCE("%s: 'native' is only meaningful in the global multidrawOrder, ignored", key);
             }
             continue;
         }
         B b;
-        if (!md_parse_backend(s, &b) || b == B::Auto) {
+        if (!md_parse_backend(s, &b) || b == B::None) {
             LOG_W_FORCE("%s: '%s' is not a backend name, ignored", key, s.c_str());
             continue;
         }
@@ -921,6 +921,7 @@ std::string dump_settings_string(std::string prefix) {
 //  Não há variante com default — o helper abaixo emula isso.
 // ═══════════════════════════════════════════════════════════════════════
 
+static void mg_log_all_settings_full();
 void mg_v3_apply_settings() {
     // Extensões avançadas
     global_settings.enable_ext_gl43           = mg_cfg_bool_compat("gpuOptimization.enableExtGL43", "enableExtGL43", 0) > 0;
@@ -1104,7 +1105,11 @@ static void mg_log_all_settings_full() {
     // 1. OpenGL ES / EGL
     LOG_I("[1/9] OpenGL ES / EGL Setup:");
     LOG_I("  • ANGLE                : %s [%s]", global_settings.angle == AngleMode::Enabled ? "ATIVO ✓" : "DESATIVADO", global_settings.angle == AngleMode::Enabled ? "Tradução ES→GL4" : "Nativo");
-    LOG_I("  • GL Version Override  : %s", global_settings.custom_gl_version == Version::GL_40 ? "4.0" : global_settings.custom_gl_version == Version::GL_42 ? "4.2" : "Auto");
+    {
+        int _glv = GLVersion.toInt(2);
+        std::string _glv_str = (_glv == DEFAULT_GL_VERSION) ? "Auto" : std::to_string(_glv);
+        LOG_I("  • GL Version Override  : %s", _glv_str.c_str());
+    }
     LOG_I("  • Hide MG Presence     : %s [%s]\n", global_settings.hide_mg_env_level == HideMGEnvLevel::Level1 ? "ATIVO ✓" : "DESATIVADO", "Camufla como driver nativo");
 
     // 2. Error Handling & Precision
