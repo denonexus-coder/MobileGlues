@@ -33,9 +33,12 @@ static MG_MultiDrawMode g_CurrentMode = MG_MultiDrawMode::LEGACY_MOBILEGLUES;
 extern "C" {
     void mg_vmdi_set_mode(MG_MultiDrawMode mode) {
         g_CurrentMode = mode;
-        if (g_CurrentMode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED) {
-            g_imdbiDispatcher.initialize();
-        }
+        // IMDBI initialization is deferred to mg_init_multidraw_subsystem(),
+        // which runs after load_libs()/init_target_gles(). Calling initialize()
+        // here marked m_initialized=true while every GLES entry point was still
+        // null, hiding the real init behind the m_initialized guard. The
+        // dispatcher already lazily initializes on its first dispatch as a
+        // safety net.
     // =========================================================================
     // LOG DETALHADO DE CAPACIDADES MULTIDRAW
     // =========================================================================

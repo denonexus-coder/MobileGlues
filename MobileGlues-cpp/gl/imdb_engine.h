@@ -153,6 +153,45 @@ struct IMDBI_CommandRingBuffer {
         }
         buffer = nullptr;
     }
+
+    // Non-copyable: owns `buffer` via new[]/delete[].
+    // The implicit copy assignment used to shallow-copy `buffer`, and the
+    // temporary's destructor then freed it -- leaving `m_ring_buffer.buffer`
+    // dangling. The next initialize() then double-freed it, which is the
+    // SIGSEGV hit by set_config() whenever imdbiRingSize != the 4 MiB ctor
+    // default.
+    IMDBI_CommandRingBuffer(const IMDBI_CommandRingBuffer&) = delete;
+    IMDBI_CommandRingBuffer& operator=(const IMDBI_CommandRingBuffer&) = delete;
+
+    IMDBI_CommandRingBuffer(IMDBI_CommandRingBuffer&& other) noexcept
+        : buffer(other.buffer),
+          capacity(other.capacity),
+          head(other.head),
+          tail(other.tail),
+          used(other.used),
+          gl_buffer(other.gl_buffer) {
+        other.buffer = nullptr;
+        other.capacity = 0;
+        other.head = other.tail = other.used = 0;
+        other.gl_buffer = 0;
+    }
+
+    IMDBI_CommandRingBuffer& operator=(IMDBI_CommandRingBuffer&& other) noexcept {
+        if (this != &other) {
+            if (buffer && gl_buffer == 0) delete[] buffer;
+            buffer    = other.buffer;
+            capacity  = other.capacity;
+            head      = other.head;
+            tail      = other.tail;
+            used      = other.used;
+            gl_buffer = other.gl_buffer;
+            other.buffer = nullptr;
+            other.capacity = 0;
+            other.head = other.tail = other.used = 0;
+            other.gl_buffer = 0;
+        }
+        return *this;
+    }
     
     void* allocate(size_t bytes, size_t alignment = alignof(uint32_t)) {
         if (bytes == 0) return nullptr;
