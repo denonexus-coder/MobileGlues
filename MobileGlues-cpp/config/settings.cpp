@@ -113,11 +113,6 @@ void init_settings() {
     global_settings.ext_direct_state_access = true;
     global_settings.custom_gl_version = {0, 0, 0}; // will go default
     global_settings.fsr1_setting = FSR1_Quality_Preset::Disabled;
-    ss << prefix << "HideMGEnvLevel: "
-       << ((global_settings.hide_mg_env_level == HideMGEnvLevel::Disabled)
-               ? "Disabled"
-               : std::to_string(static_cast<int>(global_settings.hide_mg_env_level)));
-    ss << "\n";
 
     int success = initialized;
     if (!success) {
