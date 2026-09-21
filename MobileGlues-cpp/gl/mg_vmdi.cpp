@@ -180,13 +180,9 @@ MG_VMDI_Engine::~MG_VMDI_Engine() {
 void MG_VMDI_Engine::Init(const char* glExtensions) {
     if (initialized) return;
 
-    // Checagem de leitura da Configuração inicial via Env Var (Opcional)
-    const char* envMode = getenv("MG_VMDI_ENABLE");
-    if (envMode) {
-        g_CurrentMode = (strcmp(envMode, "1") == 0 || strcasecmp(envMode, "true") == 0)
-                        ? MG_MultiDrawMode::MG_VMDI_OPTIMIZED 
-                        : MG_MultiDrawMode::LEGACY_MOBILEGLUES;
-    }
+    // The active MultiDraw engine is resolved by the canonical config
+    // pipeline in init_settings().  Do not overwrite it here.
+    // MG_VMDI_ENABLE is intentionally not treated as a runtime override.
 
     if (!glExtensions && GLES.glGetString) {
         glExtensions = reinterpret_cast<const char*>(GLES.glGetString(GL_EXTENSIONS));

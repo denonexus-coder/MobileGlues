@@ -24,20 +24,77 @@ global_settings_t global_settings;
 
 // --- Strict Config Keys (No Fallback) ---
 namespace {
-    inline int mg_cfg_int_compat(const char* nested_path, const char* flat_path, int fallback = -1) {
-        int v = config_get_int_path(nested_path);
+    // Canonical config resolver:
+    //   1) schema-v3 nested key
+    //   2) legacy flat key
+    //   3) explicit default
+    //
+    // The JSON remains the single source of configuration.  These helpers
+    // only resolve representation differences; they never override values.
+
+    inline int mg_cfg_int_compat(
+        const char* nested_path,
+        const char* flat_path,
+        int fallback = -1)
+    {
+        int v = -1;
+
+        if (nested_path)
+            v = config_get_int_path(nested_path);
+
+        if (v < 0 && flat_path)
+            v = config_get_int_path(flat_path);
+
         return v < 0 ? fallback : v;
     }
-    inline char* mg_cfg_str_compat(const char* nested_path, const char* flat_path) {
-        return config_get_string_path(nested_path);
+
+    inline char* mg_cfg_str_compat(
+        const char* nested_path,
+        const char* flat_path)
+    {
+        char* v = nullptr;
+
+        if (nested_path)
+            v = config_get_string_path(nested_path);
+
+        if (!v && flat_path)
+            v = config_get_string_path(flat_path);
+
+        return v;
     }
-    inline float mg_cfg_float_compat(const char* nested_path, const char* flat_path, float fallback = 0.0f) {
-        float v = config_get_float_path(nested_path);
+
+    inline float mg_cfg_float_compat(
+        const char* nested_path,
+        const char* flat_path,
+        float fallback = 0.0f)
+    {
+        float v = std::nanf("");
+
+        if (nested_path)
+            v = config_get_float_path(nested_path);
+
+        if (std::isnan(v) && flat_path)
+            v = config_get_float_path(flat_path);
+
         return std::isnan(v) ? fallback : v;
     }
-    inline int mg_cfg_bool_compat(const char* nested_path, const char* flat_path, int default_val) {
-        int v = config_get_int_path(nested_path);
-        if (v < 0) return default_val;
+
+    inline int mg_cfg_bool_compat(
+        const char* nested_path,
+        const char* flat_path,
+        int default_val)
+    {
+        int v = -1;
+
+        if (nested_path)
+            v = config_get_int_path(nested_path);
+
+        if (v < 0 && flat_path)
+            v = config_get_int_path(flat_path);
+
+        if (v < 0)
+            return default_val;
+
         return v > 0 ? 1 : 0;
     }
 }
@@ -89,8 +146,12 @@ void init_settings() {
 
     MG_MultiDrawMode targetMdMode = MG_MultiDrawMode::LEGACY_MOBILEGLUES;
     if (success) {
-        char* mdEngineStr = mg_cfg_str_compat("multidrawEngine.multidrawEngine", "multidrawEngine");
-        if (!mdEngineStr) mdEngineStr = mg_cfg_str_compat(nullptr, "multidrawMode");
+        char* mdEngineStr = mg_cfg_str_compat(
+            "multidrawEngine.multidrawEngine",
+            "multidrawEngine");
+
+        if (!mdEngineStr)
+            mdEngineStr = mg_cfg_str_compat(nullptr, "multidrawMode");
         
         if (mdEngineStr) {
             if (strcasecmp(mdEngineStr, "imdbi") == 0 || strcmp(mdEngineStr, "2") == 0) {
@@ -102,15 +163,15 @@ void init_settings() {
             }
         } else {
             int imdbiCfg = mg_cfg_int_compat("multidrawEngine.enableIMDBI", "enableIMDBI");
-            if (imdbiCfg == -1) imdbiCfg = config_get_int("imdbiEnable");
-            if (imdbiCfg == -1) imdbiCfg = config_get_int("imdbi");
+            // Compatibility fallback is already handled by
+            // mg_cfg_int_compat(): nested schema-v3 -> legacy flat key.
             if (imdbiCfg > 0) {
                 targetMdMode = MG_MultiDrawMode::MG_IMDBI_OPTIMIZED;
             } else {
                 // [REMOVED] orphan ref: int vmdiCfg = mg_cfg_int_compat("multidrawEngine.enableVMDI", "enableVMDI");
             int vmdiCfg = mg_cfg_int_compat("multidrawEngine.enableVMDI", "enableVMDI");
-                if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdiEnable");
-                if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdi");
+                // Compatibility fallback is already handled by
+                // mg_cfg_int_compat(): nested schema-v3 -> legacy flat key.
                 if (vmdiCfg > 0) {
                     targetMdMode = MG_MultiDrawMode::MG_VMDI_OPTIMIZED;
                 }
@@ -211,16 +272,9 @@ void init_settings() {
     LOG_V("MG_DIR_PATH = %s", mg_directory_path ? mg_directory_path : "(default)");
 
     if (isInPluginApp == 0 && fclVersion == 0 && zlVersion == 0 && pgwVersion == 0 && !is_custom_mg_dir) {
-        LOG_V("Unsupported launcher detected, force using default config.");
-        angleConfig = AngleConfig::DisableIfPossible;
-        noErrorConfig = NoErrorConfig::Auto;
-        enableExtComputeShader = false;
-        enableExtTimerQuery = true;
-        enableExtDirectStateAccess = true;
-        maxGlslCacheSize = 0;
-        angleDepthClearFixMode = AngleDepthClearFixMode::Disabled;
-        fsr1Setting = FSR1_Quality_Preset::Disabled;
-        hideMGEnvLevel = HideMGEnvLevel::Disabled;
+        // The launcher is unknown, but the configuration is still authoritative.
+        // Do NOT overwrite values loaded from config.json here.
+        LOG_V("Launcher integration not detected; preserving config.json exactly.");
     }
 
     AngleMode finalAngleMode = AngleMode::Disabled;
@@ -1249,4 +1303,37 @@ void mg_v3_apply_settings() {
     // Loga o estado final de TODAS as configurações numa única passagem.
     // Deve ser a última instrução desta função, após tudo ter sido aplicado.
     mg_log_all_settings_full();
+
+    // Canonical configuration synchronization report.
+    // This is intentionally emitted AFTER every schema-v3 value has been
+    // applied so the logger describes the effective runtime state.
+    {
+        const char* engine = mg_get_multidraw_engine_name();
+
+        LOG_I("[MobileGlues] ============================================================");
+        LOG_I("[MobileGlues] CONFIGURATION SYNC — JSON -> EFFECTIVE RUNTIME");
+        LOG_I("[MobileGlues] ============================================================");
+        LOG_I("[MobileGlues] Config source : %s",
+              mg_directory_path ? mg_directory_path : "(default)");
+
+        LOG_I("[MobileGlues] MultiDraw requested/effective : %s", engine ? engine : "Unknown");
+        LOG_I("[MobileGlues] MultiDraw enableVMDI          : %d",
+              global_settings.enable_vmdi ? 1 : 0);
+        LOG_I("[MobileGlues] MultiDraw enableIMDBI         : %d",
+              global_settings.enable_imdbi ? 1 : 0);
+
+        LOG_I("[MobileGlues] FSR version                   : %d",
+              global_settings.fsr1_version);
+        LOG_I("[MobileGlues] FSR1 sharpness                : %.3f",
+              global_settings.fsr1_sharpness);
+        LOG_I("[MobileGlues] FSR2 sharpness                : %.3f",
+              global_settings.fsr2_sharpness);
+        LOG_I("[MobileGlues] FSR sharpening                 : %d",
+              global_settings.fsr_enable_sharpening ? 1 : 0);
+
+        LOG_I("[MobileGlues] Program binary cache           : %d",
+              global_settings.use_program_binary_cache ? 1 : 0);
+
+        LOG_I("[MobileGlues] ============================================================");
+    }
 }
