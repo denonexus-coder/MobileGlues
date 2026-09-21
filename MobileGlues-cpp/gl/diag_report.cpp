@@ -454,10 +454,18 @@ extern "C" void mg_diag_emit_full_report(void) {
     section_header("⚙️", 4, 10, "JSON → RUNTIME (applied to global_settings)");
     {
         // Cross-check: read from JSON again, compare to runtime struct
-        auto cross_int = [](const char* nested, const char* flat, int runtime) {
+        auto cross_int = [](const char* nested, const char* flat, int runtime, int max_valid = 9999) {
             int json_v = mg_cfg_int_compat(nested, flat, -999);
-            const char* status = (json_v == -999) ? "⚠️  MISSING" :
-                                 (json_v == runtime) ? "✅ APPLIED" : "❌ MISMATCH";
+            const char* status;
+            if (json_v == -999) {
+                status = "⚠️  MISSING";
+            } else if (json_v == runtime) {
+                status = "✅ APPLIED";
+            } else if (json_v > max_valid || json_v < 0) {
+                status = "⚠️  CLAMPED (out of range)";
+            } else {
+                status = "❌ MISMATCH";
+            }
             kv(nested, "JSON:%-6d Runtime:%-10d %s", json_v, runtime, status);
         };
         auto cross_bool = [](const char* nested, const char* flat, bool runtime) {
