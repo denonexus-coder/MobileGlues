@@ -22,6 +22,31 @@
 
 global_settings_t global_settings;
 
+// --- Compatibility Helpers for Nested & Flat Config Keys ---
+namespace {
+    inline int mg_cfg_int_compat(const char* nested_path, const char* flat_path, int fallback = -1) {
+        int v = config_get_int_path(nested_path);
+        if (v < 0 && flat_path) v = config_get_int_path(flat_path);
+        return v < 0 ? fallback : v;
+    }
+    inline char* mg_cfg_str_compat(const char* nested_path, const char* flat_path) {
+        char* v = config_get_string_path(nested_path);
+        if (!v && flat_path) v = config_get_string_path(flat_path);
+        return v;
+    }
+    inline float mg_cfg_float_compat(const char* nested_path, const char* flat_path, float fallback = 0.0f) {
+        float v = config_get_float_path(nested_path);
+        if (std::isnan(v) && flat_path) v = config_get_float_path(flat_path);
+        return std::isnan(v) ? fallback : v;
+    }
+    inline int mg_cfg_bool_compat(const char* nested_path, const char* flat_path, int default_val) {
+        int v = config_get_int_path(nested_path);
+        if (v < 0 && flat_path) v = config_get_int_path(flat_path);
+        if (v < 0) return default_val;
+        return v > 0 ? 1 : 0;
+    }
+}
+
 // Defined in the multi-draw section below; called at the end of init_settings().
 static void parse_multidraw_orders();
 
@@ -52,25 +77,25 @@ void init_settings() {
     }
 
     AngleConfig angleConfig =
-        success ? static_cast<AngleConfig>(config_get_int("enableANGLE")) : AngleConfig::DisableIfPossible;
+        success ? static_cast<AngleConfig>(mg_cfg_int_compat("opengl_egl.enableANGLE", "enableANGLE")) : AngleConfig::DisableIfPossible;
     NoErrorConfig noErrorConfig =
-        success ? static_cast<NoErrorConfig>(config_get_int("enableNoError")) : NoErrorConfig::Auto;
-    bool enableExtComputeShader = success ? (config_get_int("enableExtComputeShader") > 0) : false;
-    bool enableExtTimerQuery = success ? (config_get_int("enableExtTimerQuery") > 0) : false;
-    bool enableExtDirectStateAccess = success ? (config_get_int("enableExtDirectStateAccess") > 0) : false;
+        success ? static_cast<NoErrorConfig>(mg_cfg_int_compat("errorHandling.enableNoError", "enableNoError")) : NoErrorConfig::Auto;
+    bool enableExtComputeShader = success ? (mg_cfg_int_compat("extensions.enableExtComputeShader", "enableExtComputeShader") > 0) : false;
+    bool enableExtTimerQuery = success ? (mg_cfg_int_compat("extensions.enableExtTimerQuery", "enableExtTimerQuery") > 0) : false;
+    bool enableExtDirectStateAccess = success ? (mg_cfg_int_compat("extensions.enableExtDirectStateAccess", "enableExtDirectStateAccess") > 0) : false;
     AngleDepthClearFixMode angleDepthClearFixMode =
-        success ? static_cast<AngleDepthClearFixMode>(config_get_int("angleDepthClearFixMode"))
+        success ? static_cast<AngleDepthClearFixMode>(mg_cfg_int_compat("errorHandling.angleDepthClearFixMode", "angleDepthClearFixMode"))
                 : AngleDepthClearFixMode::Disabled;
-    int customGLVersionInt = success ? config_get_int("customGLVersion") : DEFAULT_GL_VERSION;
+    int customGLVersionInt = success ? mg_cfg_int_compat("opengl_egl.customGLVersion", "customGLVersion", DEFAULT_GL_VERSION) : DEFAULT_GL_VERSION;
     FSR1_Quality_Preset fsr1Setting =
-        success ? static_cast<FSR1_Quality_Preset>(config_get_int("fsr1Setting")) : FSR1_Quality_Preset::Disabled;
+        success ? static_cast<FSR1_Quality_Preset>(mg_cfg_int_compat("upscaling.fsr1Setting", "fsr1Setting")) : FSR1_Quality_Preset::Disabled;
     HideMGEnvLevel hideMGEnvLevel =
-        success ? static_cast<HideMGEnvLevel>(config_get_int("hideMGEnvLevel")) : HideMGEnvLevel::Disabled;
+        success ? static_cast<HideMGEnvLevel>(mg_cfg_int_compat("opengl_egl.hideMGEnvLevel", "hideMGEnvLevel")) : HideMGEnvLevel::Disabled;
 
     MG_MultiDrawMode targetMdMode = MG_MultiDrawMode::LEGACY_MOBILEGLUES;
     if (success) {
-        char* mdEngineStr = config_get_string("multidrawEngine");
-        if (!mdEngineStr) mdEngineStr = config_get_string("multidrawMode");
+        char* mdEngineStr = mg_cfg_str_compat("multidrawEngine.multidrawEngine", "multidrawEngine");
+        if (!mdEngineStr) mdEngineStr = mg_cfg_str_compat(nullptr, "multidrawMode");
         
         if (mdEngineStr) {
             if (strcasecmp(mdEngineStr, "imdbi") == 0 || strcmp(mdEngineStr, "2") == 0) {
@@ -81,14 +106,14 @@ void init_settings() {
                 targetMdMode = MG_MultiDrawMode::LEGACY_MOBILEGLUES;
             }
         } else {
-            int imdbiCfg = config_get_int("enableIMDBI");
+            int imdbiCfg = mg_cfg_int_compat("multidrawEngine.enableIMDBI", "enableIMDBI");
             if (imdbiCfg == -1) imdbiCfg = config_get_int("imdbiEnable");
             if (imdbiCfg == -1) imdbiCfg = config_get_int("imdbi");
             if (imdbiCfg > 0) {
                 targetMdMode = MG_MultiDrawMode::MG_IMDBI_OPTIMIZED;
             } else {
-                // [REMOVED] orphan ref: int vmdiCfg = config_get_int("enableVMDI");
-            int vmdiCfg = config_get_int("enableVMDI");
+                // [REMOVED] orphan ref: int vmdiCfg = mg_cfg_int_compat("multidrawEngine.enableVMDI", "enableVMDI");
+            int vmdiCfg = mg_cfg_int_compat("multidrawEngine.enableVMDI", "enableVMDI");
                 if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdiEnable");
                 if (vmdiCfg == -1) vmdiCfg = config_get_int("vmdi");
                 if (vmdiCfg > 0) {
@@ -130,8 +155,8 @@ void init_settings() {
     }
 
     size_t maxGlslCacheSize = 0;
-    if (config_get_int("maxGlslCacheSize") > 0) {
-        maxGlslCacheSize = success ? config_get_int("maxGlslCacheSize") * 1024 * 1024 : 0;
+    if (mg_cfg_int_compat("shaderCache.maxGlslCacheSize", "maxGlslCacheSize") > 0) {
+        maxGlslCacheSize = success ? mg_cfg_int_compat("shaderCache.maxGlslCacheSize", "maxGlslCacheSize") * 1024 * 1024 : 0;
     }
 
     // config_get_int returns -1 for a key that is absent, so a config.json written
@@ -468,7 +493,9 @@ bool md_parse_backend(const std::string& raw, B* out) {
 }
 
 std::string md_config_string(const char* key) {
-    const char* v = config_get_string(const_cast<char*>(key));
+    char buf[128];
+    snprintf(buf, sizeof(buf), "multidrawOrder.%s", key);
+    const char* v = mg_cfg_str_compat(buf, key);
     // config_get_string hands back a pointer into the live cJSON tree; copy now.
     return v ? std::string(v) : std::string();
 }
@@ -1074,36 +1101,25 @@ static void mg_log_all_settings_full() {
 //      char* config_get_string(char* name); // nullptr se ausente
 //  Não há variante com default — o helper abaixo emula isso.
 // ═══════════════════════════════════════════════════════════════════════
-namespace {
-
-// config_get_int devolve -1 quando a chave não existe; aqui qualquer valor
-// negativo vira "ausente" e cai no default. Cobre também -2/-3 caso o parser
-// futuro mude a convenção.
-inline int mg_cfg_int(const char* key, int fallback) {
-    int v = config_get_int(const_cast<char*>(key));
-    return v < 0 ? fallback : v;
-}
-
-} // namespace
 
 void mg_v3_apply_settings() {
     // Extensões avançadas
-    global_settings.enable_ext_gl43           = mg_cfg_int("enableExtGL43", 0) > 0;
-    global_settings.force_gl_get_error_skip   = mg_cfg_int("forceGlGetErrorSkip", 1) > 0;
+    global_settings.enable_ext_gl43           = mg_cfg_bool_compat("gpuOptimization.enableExtGL43", "enableExtGL43", 0) > 0;
+    global_settings.force_gl_get_error_skip   = mg_cfg_bool_compat("errorHandling.forceGlGetErrorSkip", "forceGlGetErrorSkip", 1) > 0;
     // disableComputeOnWeakGpu: when true (default), auto-disable compute shaders
     // on GPUs detected to be too slow for them (e.g. PowerVR GE8320).
-    global_settings.disable_compute_on_weak_gpu = mg_cfg_int("disableComputeOnWeakGpu", 1) > 0;
-    global_settings.buffer_upload_mode        = mg_cfg_int("bufferUploadMode", 0);
-    global_settings.texture_swizzle_mode      = mg_cfg_int("textureSwizzleMode", 0);
-    global_settings.max_anisotropy_override   = mg_cfg_int("maxAnisotropyOverride", 0);
-    global_settings.force_depth_precision_fix = mg_cfg_int("forceDepthPrecisionFix", 0) > 0;
+    global_settings.disable_compute_on_weak_gpu = mg_cfg_bool_compat("gpuOptimization.disableComputeOnWeakGpu", "disableComputeOnWeakGpu", 1) > 0;
+    global_settings.buffer_upload_mode        = mg_cfg_int_compat("textureBuffer.bufferUploadMode", "bufferUploadMode", 0);
+    global_settings.texture_swizzle_mode      = mg_cfg_int_compat("textureBuffer.textureSwizzleMode", "textureSwizzleMode", 0);
+    global_settings.max_anisotropy_override   = mg_cfg_int_compat("textureBuffer.maxAnisotropyOverride", "maxAnisotropyOverride", 0);
+    global_settings.force_depth_precision_fix = mg_cfg_bool_compat("errorHandling.forceDepthPrecisionFix", "forceDepthPrecisionFix", 0) > 0;
 
     // ─── FSR version & sharpness (v3.1) ─────────────────────────────
     //
     // fsr1Version: 1 = 5-tap (FSR1), 2 = 3-tap (FSR2)
     // Default 2 (3-tap; casa com performance de blit hardware)
     {
-        int ver = mg_cfg_int("fsr1Version", 2);
+        int ver = mg_cfg_int_compat("upscaling.fsr1Version", "fsr1Version", 2);
         if (ver < 1) ver = 1;
         if (ver > 2) ver = 2;
         global_settings.fsr1_version = ver;
@@ -1111,7 +1127,7 @@ void mg_v3_apply_settings() {
 
     // fsr1Sharpness: aplica quando fsr1Version=1 (5-tap)
     {
-        float sharp = config_get_float_path("fsr1Sharpness");
+        float sharp = mg_cfg_float_compat("upscaling.fsr1Sharpness", "fsr1Sharpness");
         if (!std::isnan(sharp)) {
             if (sharp < 0.0f) sharp = 0.0f;
             if (sharp > 1.0f) sharp = 1.0f;
@@ -1121,7 +1137,7 @@ void mg_v3_apply_settings() {
 
     // fsr2Sharpness: aplica quando fsr1Version=2 (3-tap)
     {
-        float sharp = config_get_float_path("fsr2Sharpness");
+        float sharp = mg_cfg_float_compat("upscaling.fsr2Sharpness", "fsr2Sharpness");
         if (!std::isnan(sharp)) {
             if (sharp < 0.0f) sharp = 0.0f;
             if (sharp > 1.0f) sharp = 1.0f;
@@ -1131,7 +1147,7 @@ void mg_v3_apply_settings() {
 
     // fsrEnableSharpening: master switch (default true)
     {
-        int enable = config_get_bool_path("fsrEnableSharpening", 1);
+        int enable = mg_cfg_bool_compat("upscaling.fsrEnableSharpening", "fsrEnableSharpening", 1);
         global_settings.fsr_enable_sharpening = enable > 0;
     }
 
@@ -1141,9 +1157,9 @@ void mg_v3_apply_settings() {
           global_settings.fsr2_sharpness,
           (int)global_settings.fsr_enable_sharpening);
 
-    int bin_cache_cfg = config_get_bool_path("useProgramBinaryCache", -1);
+    int bin_cache_cfg = mg_cfg_int_compat("shaderCache.useProgramBinaryCache", "useProgramBinaryCache");
     if (bin_cache_cfg < 0) {
-        bin_cache_cfg = config_get_bool_path("use_program_binary_cache", 0);
+        bin_cache_cfg = mg_cfg_int_compat("shaderCache.use_program_binary_cache", "use_program_binary_cache");
     }
     global_settings.use_program_binary_cache = bin_cache_cfg > 0;
 
@@ -1154,26 +1170,26 @@ void mg_v3_apply_settings() {
     MG::ProgramBinaryCache::get_instance().set_enabled(global_settings.use_program_binary_cache);
 
     // Layer 3 — Debug
-    global_settings.diag_enabled               = config_get_bool_path("diag.enabled", 0);
-    global_settings.diag_frame_profiler        = config_get_bool_path("diag.overlay.frameProfiler", 0);
-    global_settings.diag_draw_call_count       = config_get_bool_path("diag.overlay.drawCallCount", 0);
-    global_settings.diag_shader_recompiles     = config_get_bool_path("diag.overlay.shaderRecompiles", 0);
-    global_settings.diag_backend_tier          = config_get_bool_path("diag.overlay.backendTier", 0);
-    global_settings.diag_cpu_gpu_load          = config_get_bool_path("diag.overlay.cpuGpuLoad", 0);
-    global_settings.diag_log_backend_selection = config_get_bool_path("diag.logging.backendSelection", 0);
-    global_settings.diag_log_shader_recompiles = config_get_bool_path("diag.logging.shaderRecompiles", 0);
-    global_settings.diag_log_draw_call_count   = config_get_bool_path("diag.logging.drawCallCount", 0);
-    global_settings.diag_log_gl_trace          = config_get_bool_path("diag.logging.glTrace", 0);
-    const char* log_lvl = config_get_string_path("diag.logging.level");
+    global_settings.diag_enabled               = mg_cfg_bool_compat("diagnostics.enabled", "diag.enabled", 0);
+    global_settings.diag_frame_profiler        = mg_cfg_bool_compat("diagnostics.overlay.frameProfiler", "diag.overlay.frameProfiler", 0);
+    global_settings.diag_draw_call_count       = mg_cfg_bool_compat("diagnostics.overlay.drawCallCount", "diag.overlay.drawCallCount", 0);
+    global_settings.diag_shader_recompiles     = mg_cfg_bool_compat("diagnostics.overlay.shaderRecompiles", "diag.overlay.shaderRecompiles", 0);
+    global_settings.diag_backend_tier          = mg_cfg_bool_compat("diagnostics.overlay.backendTier", "diag.overlay.backendTier", 0);
+    global_settings.diag_cpu_gpu_load          = mg_cfg_bool_compat("diagnostics.overlay.cpuGpuLoad", "diag.overlay.cpuGpuLoad", 0);
+    global_settings.diag_log_backend_selection = mg_cfg_bool_compat("diagnostics.logging.backendSelection", "diag.logging.backendSelection", 0);
+    global_settings.diag_log_shader_recompiles = mg_cfg_bool_compat("diagnostics.logging.shaderRecompiles", "diag.logging.shaderRecompiles", 0);
+    global_settings.diag_log_draw_call_count   = mg_cfg_bool_compat("diagnostics.logging.drawCallCount", "diag.logging.drawCallCount", 0);
+    global_settings.diag_log_gl_trace          = mg_cfg_bool_compat("diagnostics.logging.glTrace", "diag.logging.glTrace", 0);
+    const char* log_lvl = mg_cfg_str_compat("diagnostics.logging.level", "diag.logging.level");
     global_settings.diag_log_level             = (log_lvl && log_lvl[0]) ? log_lvl : "info";
-    global_settings.diag_capability_report     = config_get_bool_path("diag.capabilityReport", 0);
-    global_settings.diag_perfetto_enabled      = config_get_bool_path("diag.perfetto.enabled", 0);
-    int p_dur = config_get_int_path("diag.perfetto.maxDurationSec");
+    global_settings.diag_capability_report     = mg_cfg_bool_compat("diagnostics.capabilityReport", "diag.capabilityReport", 0);
+    global_settings.diag_perfetto_enabled      = mg_cfg_bool_compat("diagnostics.perfetto.enabled", "diag.perfetto.enabled", 0);
+    int p_dur = mg_cfg_int_compat("diagnostics.perfetto.maxDurationSec", "diag.perfetto.maxDurationSec", -1);
     global_settings.diag_perfetto_max_duration = p_dur > 0 ? p_dur : 30;
 
     // ── IMDBI submodes (só aplicam se engine == IMDBI) ──
     if (global_settings.multidraw_mode == MG_MultiDrawMode::MG_IMDBI_OPTIMIZED || global_settings.enable_imdbi) {
-        const char* imdbi_mode_str = config_get_string_path("imdbiBackend");
+        const char* imdbi_mode_str = mg_cfg_str_compat("multidrawEngine.imdbi.imdbiBackend", "imdbiBackend");
         int mode = 1;
         if (imdbi_mode_str && *imdbi_mode_str) {
             if (strcasecmp(imdbi_mode_str, "stitching") == 0) mode = 0;
@@ -1182,12 +1198,12 @@ void mg_v3_apply_settings() {
             else if (strcasecmp(imdbi_mode_str, "compute_dispatch") == 0) mode = 3;
         }
         global_settings.imdbi_backend_mode       = mode;
-        global_settings.imdbi_unroll_factor      = config_get_int_path("imdbiUnrollFactor") > 0
-                                                    ? config_get_int_path("imdbiUnrollFactor") : 4;
-        global_settings.imdbi_persistent_mapping = config_get_bool_path("imdbiPersistentMapping", 1);
-        global_settings.imdbi_register_pinning   = config_get_bool_path("imdbiRegisterPinning", 1);
-        global_settings.imdbi_primitive_restart  = config_get_bool_path("imdbiPrimitiveRestart", 1);
-        int ring = config_get_int_path("imdbiRingSize");
+        global_settings.imdbi_unroll_factor      = mg_cfg_int_compat("multidrawEngine.imdbi.imdbiUnrollFactor", "imdbiUnrollFactor") > 0
+                                                    ? mg_cfg_int_compat("multidrawEngine.imdbi.imdbiUnrollFactor", "imdbiUnrollFactor") : 4;
+        global_settings.imdbi_persistent_mapping = mg_cfg_bool_compat("multidrawEngine.imdbi.imdbiPersistentMapping", "imdbiPersistentMapping", 1);
+        global_settings.imdbi_register_pinning   = mg_cfg_bool_compat("multidrawEngine.imdbi.imdbiRegisterPinning", "imdbiRegisterPinning", 1);
+        global_settings.imdbi_primitive_restart  = mg_cfg_bool_compat("multidrawEngine.imdbi.imdbiPrimitiveRestart", "imdbiPrimitiveRestart", 1);
+        int ring = mg_cfg_int_compat("multidrawEngine.imdbi.imdbiRingSize", "imdbiRingSize");
         global_settings.imdbi_ring_size          = ring > 0 ? ring : (4 * 1024 * 1024);
 
         // aplica na dispatcher
@@ -1207,7 +1223,7 @@ void mg_v3_apply_settings() {
 
     // ── VMDI submode tier (só se engine == VMDI) ──
     if (global_settings.multidraw_mode == MG_MultiDrawMode::MG_VMDI_OPTIMIZED || global_settings.enable_vmdi) {
-        const char* tier_str = config_get_string_path("vmdiBackendTier");
+        const char* tier_str = mg_cfg_str_compat("multidrawEngine.vmdi.vmdiBackendTier", "vmdiBackendTier");
         int tier = -1;
         if (tier_str && *tier_str) {
             if (strcasecmp(tier_str, "native_mdi") == 0) tier = 0;
@@ -1217,7 +1233,7 @@ void mg_v3_apply_settings() {
             // "auto" ou vazio → -1
         }
         global_settings.vmdi_backend_tier    = tier;
-        global_settings.vmdi_enable_autotune = config_get_bool_path("vmdiEnableAutotune", 1);
+        global_settings.vmdi_enable_autotune = mg_cfg_bool_compat("multidrawEngine.vmdi.vmdiEnableAutotune", "vmdiEnableAutotune", 1);
 
         mg_vmdi_set_tier(global_settings.vmdi_enable_autotune ? -1 : tier);
         LOG_I("[MobileGlues] VMDI submode: tier=%d autotune=%d",
