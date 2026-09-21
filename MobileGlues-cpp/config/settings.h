@@ -284,7 +284,7 @@ void set_multidraw_setting();
 // Aplica campos adicionais do schema v3 (multidrawEngine, bufferUploadMode,
 // textureSwizzleMode, maxAnisotropyOverride, forceDepthPrecisionFix, diag.*).
 // Chamada por main.cpp depois de init_settings_post().
-void mg_v3_apply_settings();
+void mg_apply_all_settings_from_json();
 
 // Resolved backend for one entry point. Always a concrete backend after
 // init_settings_post(); never md_backend_t::Auto.

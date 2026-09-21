@@ -1204,3 +1204,8 @@ static void mg_log_all_settings_full() {
     LOG_I("GL_VERSION   : GL %d.%d (%s)", major, minor, glGetString(GL_VERSION));
     LOG_I("GL_ERROR     : 0x%04x %s\n", err, err == GL_NO_ERROR ? "✓ OK" : "⚠ WARNING");
 }
+
+// Wrapper — corpo real em mg_v3_apply_settings() (main.cpp:73)
+void mg_apply_all_settings_from_json() {
+    mg_v3_apply_settings();
+}

@@ -70,7 +70,7 @@ void proc_init() {
     set_multidraw_setting();
 
     init_settings_post();
-    mg_v3_apply_settings();
+    mg_apply_all_settings_from_json();
 
 #if PROFILING
     init_perfetto();
