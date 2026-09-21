@@ -24,6 +24,7 @@ extern "C"
 
 #ifdef __cplusplus
 }
+
 #endif
 
 #ifndef __ANDROID__

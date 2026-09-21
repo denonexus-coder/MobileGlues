@@ -16,6 +16,7 @@
 int __android_log_print(int prio, const char* tag, const char* fmt, ...) {
     return 0; // Do nothing
 }
+
 #endif
 
 #define CASE(e)                                                                                                        \
@@ -1100,6 +1101,7 @@ const char* glEnumToString(GLenum e) {
     }
 }
 
+
 #if LOG_CALLED_FUNCS
 
 #include "../config/config.h"
@@ -1127,4 +1129,5 @@ void log_unique_function(const char* func_name) {
 
     logged_functions.insert(func_str);
 }
+
 #endif
